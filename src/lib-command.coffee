@@ -42,7 +42,7 @@ getFoldersFromFiles = (files, cb) ->
   async.map files, statsAndFolder, (err, folders) ->
     cb err, if err then null else lo.uniq folders.filter (f) -> f?
 
-getFilesFromField = (field, folderSpec, basedir, packageName, keys, opts, cb) ->
+getFilesFromField = (field, basedir, packageName, keys, opts, cb) ->
   if typeof opts is 'function'
     cb = opts
     opts = null
@@ -67,12 +67,17 @@ getFilesFromField = (field, folderSpec, basedir, packageName, keys, opts, cb) ->
             (err, sels) ->
               cmds = lo.flatten sels
               if err then cb err
-              else if folderSpec?.folders then getFoldersFromFiles cmds, cb
+              else if opts?.folders then getFoldersFromFiles cmds, cb
               else cb err, lo.uniq cmds
         catch err then cb err
 
-include = (args..., cb) ->
-  getFilesFromField 'include', {folders: yes}, args..., (err, files) ->
+include = (args..., opts, cb) ->
+  if typeof opts is 'function'
+    cb = opts
+    opts = {folders:yes}
+  else
+    opts.folders = yes
+  getFilesFromField 'include', {folders: yes}, args..., opts, (err, files) ->
     if err then cb err else cb null, (files.map (f) -> "-I.#{f}").join ' '
 
 module.exports = {
