@@ -10,11 +10,11 @@
   "main": "src/lib-command",
   "bin": "cmd",
   "dependencies": {
+    "async": "^1.4.2",
     "colors": "^1.1.2",
     "glob": "^5.0.15",
     "lodash": "^3.10.1",
-    "minimist": "^1.2.0",
-    "promise": "^7.0.4"
+    "minimist": "^1.2.0"
   },
   "devDependencies": {
     "coffee-script": "^1.10.0"

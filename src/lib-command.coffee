@@ -1,69 +1,75 @@
 fs = require 'fs'
 path = require 'path'
 
-_ = require 'lodash'
-promise = require 'promise'
+async = require 'async'
+# _ = require 'lodash'
 glob = require 'glob'
 
 S = require './strings'
 colorize = require './colorize'
 
-getPackageFile = (basedir) -> path.join basedir, S.packageFileName
+getPackageFile = (basedir) -> path.join basedir, S.packageFilename
 
 getPackageFilePath = (basedir, cb) ->
     curFilePath = getPackageFile basedir
     fs.stat curFilePath, (err, stat) ->
       if err
-        parsed = path.parse basedir
+        parsed = path.parse path.resolve basedir
         if parsed.root is parsed.dir then cb null
         else getPackageFilePath (path.join basedir, '..'), cb
       else cb curFilePath
+
+getPackageDirPath = (basedir, cb) -> getPackageFilePath basedir, (file) ->
+  if not file then null else path.dirname file
 
 isStringOrArray = (o) -> (typeof o is 'string') or (o instanceof Array)
 isObject = (o) -> (not isStringOrArray o) and o instanceof Object
 
 # expand wildcards and arrays
-globPromise = promise.denodeify glob
+lo = require 'lodash'
 expandFileSelector = (basedir, sel, cb) ->
   if sel instanceof Array
-    (promise.all (expandFilePromise basedir, f for f in sel)).then (files) ->
-      cb _.uniq files
-  else if typeof sel is 'string' then glob sel, {cwd: basedir}, cb
-  else throw new Error "invalid file selector #{sel}"
-expandFilePromise = promise.denodeify expandFileSelector
+    async.map sel, ((selector, asyncCb) ->
+      expandFileSelector basedir, selector, asyncCb),
+      (err, files) -> cb err, if err then null else lo.uniq lo.flatten files
+  else if typeof sel is 'string' then glob sel, {cwd: basedir}, (err, files) ->
+    cb err, if err then null else files.map (f) -> path.join basedir, f
+  else cb new Error "invalid file selector #{sel}"
 
-statsAndFile = (f, cb) -> fs.stat f, (err, res) ->
-  if err then null else if res.isDirectory() then res else path.dirname res
-statPromise = promise.denodeify statsAndFile
+statsAndFolder = (f, cb) -> fs.stat f, (err, res) ->
+  cb err, if (not err) and res.isDirectory() then f else path.dirname f
 getFoldersFromFiles = (files, cb) ->
-  (promise.all (statPromise f for f in files)).then (folders) ->
-    cb _.uniq folders.filter (f) -> f?
+  async.map files, statsAndFolder, (err, folders) ->
+    cb err, if err then null else lo.uniq folders.filter (f) -> f?
 
 getFilesFromField = (field, folderSpec, basedir, packageName, keys, opts, cb) ->
   if typeof opts is 'function'
     cb = opts
     opts = null
-  folder = path.join basedir, S.modulesFolder, packageName
-  packFile = path.join folder, S.packageFilename
-  fs.readFile packFile, (err, contents) ->
-    try fieldObj = (JSON.parse contents)[field] catch err then cb err
-    if err then cb S.packageNotFound basedir, packageName
-    else
-      try
-        res = if isObject fieldObj
-            if keys then throw S.noKeysForTarget field, packFile
-            for key in keys
-              if key in fieldObj
-                expandFileSelector folder, fieldObj[key]
-              else throw S.keyNotFound field, packFile, key
-          else if isStringOrArray fieldObj
-            [expandFileSelector folder, fieldObj]
-          else throw S.invalidFieldType packFile, field
-        cmds = _.flatten res
-        if folderSpec?.folders then getFoldersFromFiles cmds, (folders) ->
-          cb null, folders
-        else cb null, _.uniq cmds
-      catch err then cb err
+  getPackageDirPath basedir, (packDir) ->
+    return cb S.noPackageFound unless packDir?
+    folder = path.join packDir, S.modulesFolder, packageName
+    packFile = path.join folder, S.packageFilename
+    fs.readFile packFile, (err, contents) ->
+      if err then cb S.packageNotFound basedir, packageName
+      else
+        try fieldObj = (JSON.parse contents)[field] catch err then return cb err
+        try
+          selectors = if isObject fieldObj
+              if keys then throw S.noKeysForTarget field, packFile
+              for key in keys
+                if key in fieldObj then fieldObj[key]
+                else throw S.keyNotFound field, packFile, key
+            else if isStringOrArray fieldObj then fieldObj
+            else throw S.invalidFieldType packFile, field
+          async.map selectors, ((sel, asyncCb) ->
+            expandFileSelector folder, sel, asyncCb),
+            (err, sels) ->
+              cmds = lo.flatten sels
+              if err then cb err
+              else if folderSpec?.folders then getFoldersFromFiles cmds, cb
+              else cb err, lo.uniq cmds
+        catch err then cb err
 
 include = (args..., cb) ->
   getFilesFromField 'include', {folders: yes}, args..., (err, files) ->
@@ -71,6 +77,7 @@ include = (args..., cb) ->
 
 module.exports = {
   getPackageFilePath
+  getPackageDirPath
   isStringOrArray
   isObject
   getPackageFile
