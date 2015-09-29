@@ -1,7 +1,7 @@
 cpm
 ===
 
-A package manager for C in the style of npm.
+A package manager for C in the style of npm. See the [docs directory](docs/) for usage and examples.
 
 # Why?
 
@@ -35,7 +35,7 @@ Assume `some-project` is laid out as below:
 
 and your project depends upon `some-project`; when in your project's root directory:
 ```shell
-$ cpm require some-project
+$ cpm include some-project
 -I./c_modules/some-project/src/
 $ cpm link some-project
 ./c_modules/some-project/bin/libsomeproject.a
@@ -51,7 +51,7 @@ $ "$(cpm bin some-project)" --version
 some-project v0.1
 ```
 
-Finally, integrating (potentially massive) existing projects to cpm is a jiffy; while cpm *does* require projects to export a static library (if the project exports a library at all), this can be done relatively quickly with the judicious use of `ar` or other archive utility, the same way a shared library is produced. Then, the only required change is adding a `main` entry to `package.json`.
+Finally, integrating (potentially massive) existing projects to cpm is a jiffy; the only required change is adding a `main` entry to `package.json`.
 
 # Questions
 
