@@ -15,6 +15,7 @@ help = getOptionArg argv, 'h'
 version = getOptionArg argv, 'v'
 noColor = getOptionArg argv, 'c'
 server = getOptionArg argv, 's'
+allTargets = getOptionArg argv, 'a'
 
 if version
   f = JSON.parse fs.readFileSync path.normalize(
@@ -26,9 +27,9 @@ else if help or (argv._.length is 0)
   process.exit 0
 else
   command = argv._[0]
-  cmdFun = libCmd[command]
+  cmdFun = libCmd.commands[libCmd.hyphenToCamel command]
   errorOut S.commandNotFound command unless cmdFun
   cmdFun process.cwd(), argv._[1], argv._[2..],
-    {noColor, server}, (err, output) ->
+    {noColor, server, allTargets}, (err, output) ->
       if err then errorOut err
       else console.log output

@@ -25,6 +25,24 @@ Stops colorization of output, if the command would have produced colorized outpu
 
 ## Non-Global Options
 
+- `-a|--all-keys`
+
+Specifies that all keys of the target should be acted upon for commands which act upon a package with targets.
+
+package-cpm.json:
+```json
+"bin": {
+  "output_a": "file.exe",
+  "output_b": "file2.exe"
+}
+```
+
+usage:
+```
+$ cpm bin some-project -a
+./c_modules/some-project/file.exe ./c_modules/some-project/file2.exe
+```
+
 - `-s <server>|--server=<server>`
 
 Specifies basename of server to link to for commands which access a registry.

@@ -9,6 +9,7 @@ module.exports =
     v: 'version'
     c: 'no-color'
     s: 'server'
+    a: 'all-keys'
 
   packageFilename: packageFilename
 
@@ -65,7 +66,11 @@ module.exports =
   "available commands."].join '\n'
 
   noKeysForTarget: (target, jsonPath) -> "field '#{target}' of #{jsonPath} is
-  not an associative array."
+  an associative array, but no keys were specified."
+
+  keyGivenForNoReason: (target, jsonPath, keys) -> "field '#{target}' of
+  #{jsonPath} is not an associative array, but keys '#{keys.join "', '"}' were
+  specified."
 
   keyNotFound: (target, jsonPath, key) -> "key '#{key}' is not in field
   '#{target}' of #{jsonPath}."
