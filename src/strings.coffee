@@ -12,6 +12,7 @@ module.exports =
     a: 'all-keys'
 
   packageFilename: packageFilename
+  modulesFolder: modulesFolder
 
   helpMsg: ["Usage: cpm [-h|-v|-c|-s <server>] command [arg..]"
   "Download, install, and manage C/C++ packages on public or private
@@ -24,6 +25,9 @@ module.exports =
   "                       colorized."
   "  -s, --server=SERVER  Pull from given server instead of default server for"
   "                       operations which access a package registry."
+  "  -a BOOL, --all-keys=BOOL"
+  "                       Pull all keys from a target which is designated by an"
+  "                       associative array."
   ""
   "Commands"
   "Querying Installed Packages:"
@@ -49,30 +53,33 @@ module.exports =
   "             specified by the first argument."
   "  remove     Remove package from c_modules and #{packageFilename}."
   ""
-  "More in-depth documentation of all these options can be found at"
+  "More in-depth documentation of all these options can be found at:"
   "https://github.com/cosmicexplorer/cpm/blob/master/docs/commands.md."]
   .join '\n'
 
-  noPackageFound: "No #{packageFilename} found in current directory or any
+  # use if no package.json found for current project
+  noPackageJsonFound: "No #{packageFilename} found in current directory or any
   parent."
 
-  packageNotFound: (jsonDir, pack) -> "package '#{pack}' was not found in
+  # use if package.json found for current project, but not for a dependency
+  packageNotFound: (jsonDir, pack) -> "Package '#{pack}' was not found in
   #{path.join jsonDir, pack}/"
 
-  invalidFieldType: (jsonPath, field) -> "field '#{field}' of #{jsonPath} is not
+  invalidFieldType: (jsonPath, field) -> "Field '#{field}' of #{jsonPath} is not
   an object, array of strings, or string."
 
-  commandNotFound: (cmd) -> ["Command '#{cmd}' not found. Run cpm -h for"
-  "available commands."].join '\n'
+  commandNotFound: (cmd) -> "Command '#{cmd}' not found. Run cpm -h for
+  available commands."
 
-  noKeysForTarget: (target, jsonPath) -> "field '#{target}' of #{jsonPath} is
+  noKeysForTarget: (target, jsonPath) -> "Field '#{target}' of #{jsonPath} is
   an associative array, but no keys were specified."
 
-  keyGivenForNoReason: (target, jsonPath, keys) -> "field '#{target}' of
+  keyGivenForNoReason: (target, jsonPath, keys) -> "Field '#{target}' of
   #{jsonPath} is not an associative array, but keys '#{keys.join "', '"}' were
   specified."
 
-  keyNotFound: (target, jsonPath, key) -> "key '#{key}' is not in field
-  '#{target}' of #{jsonPath}."
+  keyGivenNotSupported: (target, keys) -> "Field '#{target}' does not
+  support keyed values, but '#{keys.join "', '"}' were provided."
 
-  modulesFolder: modulesFolder
+  keyNotFound: (target, jsonPath, key) -> "Key '#{key}' is not in field
+  '#{target}' of #{jsonPath}."

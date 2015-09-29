@@ -25,9 +25,9 @@ Stops colorization of output, if the command would have produced colorized outpu
 
 ## Non-Global Options
 
-- `-a|--all-keys`
+- `-a <true|false>|--all-keys=<true|false>`
 
-Specifies that all keys of the target should be acted upon for commands which act upon a package with targets.
+Specifies that all keys of the target should (or should not) be acted upon for commands which act upon a package with targets.
 
 package-cpm.json:
 ```json

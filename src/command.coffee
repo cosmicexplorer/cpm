@@ -16,6 +16,7 @@ version = getOptionArg argv, 'v'
 noColor = getOptionArg argv, 'c'
 server = getOptionArg argv, 's'
 allTargets = getOptionArg argv, 'a'
+allTargets = (allTargets is 'true') if typeof allTargets is 'string'
 
 if version
   f = JSON.parse fs.readFileSync path.normalize(
