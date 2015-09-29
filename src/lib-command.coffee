@@ -15,7 +15,7 @@ getPackageFilePath = (basedir, cb) ->
       if err
         parsed = path.parse basedir
         if parsed.root is parse.dir then cb null
-        else getPackageFilePath (path.normalize basedir, '..'), cb
+        else getPackageFilePath (path.join basedir, '..'), cb
       else cb curFilePath
 
 isStringOrArray = (o) -> (typeof o is 'string') or (o instanceof Array)
@@ -36,9 +36,12 @@ statsAndFile = (f, cb) -> fs.stat f, (err, res) ->
 statPromise = promise.denodeify statsAndFile
 getFoldersFromFiles = (files, cb) ->
   (promise.all (statPromise f for f in files)).then (folders) ->
-    cb _.uniq folders
+    cb _.uniq folders.filter (f) -> f?
 
 getFilesFromField = (field, folderSpec, basedir, packageName, keys, opts, cb) ->
+  if typeof opts is 'function'
+    cb = opts
+    opts = null
   folder = path.join basedir, S.modulesFolder, packageName
   packFile = path.join folder, S.packageFilename
   fs.readFile packFile, (err, contents) ->
@@ -56,14 +59,14 @@ getFilesFromField = (field, folderSpec, basedir, packageName, keys, opts, cb) ->
             [expandFileSelector folder, fieldObj]
           else throw S.invalidFieldType packFile, field
         cmds = _.flatten res
-        if folderSpec.folders
+        if folderSpec?.folders
           getFoldersFromFiles cmds, (folders) -> cb null, folders
-        else cb null, _.uniq files
+        else cb null, _.uniq filesS
       catch err then cb err
 
 include = (args..., cb) ->
   getFilesFromField 'include', {folders: yes}, args..., (err, files) ->
-    if err then cb err else cb null, files.map (f) -> "-I.#{f}"
+    if err then cb err else cb null, (files.map (f) -> "-I.#{f}").join ' '
 
 module.exports = {
   getPackageFilePath

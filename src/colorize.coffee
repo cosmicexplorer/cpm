@@ -1,4 +1,3 @@
 colors = require 'colors'
 
-module.exports = (str) ->
-  
+module.exports = (str) -> str

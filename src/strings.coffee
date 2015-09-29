@@ -55,8 +55,8 @@ module.exports =
   noPackageFound: "No #{packageFilename} found in current directory or any
   parent."
 
-  packageNotFound: (jsonDir, package) -> "package #{package} was not found in
-  #{path.join jsonDir, package}/"
+  packageNotFound: (jsonDir, pack) -> "package #{pack} was not found in
+  #{path.join jsonDir, pack}/"
 
   invalidFieldType: (jsonPath, field) -> "field #{field} of #{jsonPath} is not
   an object, array of strings, or string."

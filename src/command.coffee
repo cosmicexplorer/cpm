@@ -17,8 +17,8 @@ noColor = getOptionArg argv, 'c'
 server = getOptionArg argv, 's'
 
 if version
-  f = JSON.parse fs.readFileSync path.normalize
-    "#{__dirname}/../#{S.packageFilename}"
+  f = JSON.parse fs.readFileSync path.normalize(
+    "#{__dirname}/../#{S.packageFilename}")
   console.log f.version
   process.exit 0
 else if help or (argv._.length is 0)
@@ -35,4 +35,4 @@ else
       cmdFun packageDir, argv._[1], argv._[2..],
         {noColor, server}, (err, output) ->
         if err then errorOut err
-        else process.stdout.write output.join '\n'
+        else process.stdout.write output

@@ -6,11 +6,17 @@
     "type": "git",
     "url": "git://github.com/cosmicexplorer/cpm.git"
   },
+  "prepublish": "make",
+  "main": "src/lib-command",
+  "bin": "cmd",
   "dependencies": {
     "colors": "^1.1.2",
     "glob": "^5.0.15",
     "lodash": "^3.10.1",
     "minimist": "^1.2.0",
     "promise": "^7.0.4"
+  },
+  "devDependencies": {
+    "coffee-script": "^1.10.0"
   }
 }
