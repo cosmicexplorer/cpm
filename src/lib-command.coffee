@@ -5,6 +5,7 @@ _ = require 'lodash'
 promise = require 'promise'
 glob = require 'glob'
 
+S = require './strings'
 colorize = require './colorize'
 
 getPackageFile = (basedir) -> path.join basedir, S.packageFileName
@@ -14,7 +15,7 @@ getPackageFilePath = (basedir, cb) ->
     fs.stat curFilePath, (err, stat) ->
       if err
         parsed = path.parse basedir
-        if parsed.root is parse.dir then cb null
+        if parsed.root is parsed.dir then cb null
         else getPackageFilePath (path.join basedir, '..'), cb
       else cb curFilePath
 
@@ -50,18 +51,18 @@ getFilesFromField = (field, folderSpec, basedir, packageName, keys, opts, cb) ->
     else
       try
         res = if isObject fieldObj
-            if keys then throw S.noKeysForTarget field, packageFile
+            if keys then throw S.noKeysForTarget field, packFile
             for key in keys
               if key in fieldObj
                 expandFileSelector folder, fieldObj[key]
-              else throw S.keyNotFound field, packageFile, key
+              else throw S.keyNotFound field, packFile, key
           else if isStringOrArray fieldObj
             [expandFileSelector folder, fieldObj]
           else throw S.invalidFieldType packFile, field
         cmds = _.flatten res
-        if folderSpec?.folders
-          getFoldersFromFiles cmds, (folders) -> cb null, folders
-        else cb null, _.uniq filesS
+        if folderSpec?.folders then getFoldersFromFiles cmds, (folders) ->
+          cb null, folders
+        else cb null, _.uniq cmds
       catch err then cb err
 
 include = (args..., cb) ->
