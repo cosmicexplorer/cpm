@@ -20,7 +20,7 @@ allTargets = (allTargets is 'true') if typeof allTargets is 'string'
 
 if version
   f = JSON.parse fs.readFileSync path.normalize(
-    "#{__dirname}/../#{S.packageFilename}")
+    "#{__dirname}/#{S.packageFilename}")
   console.log f.version
   process.exit 0
 else if help or (argv._.length is 0)

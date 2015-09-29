@@ -83,3 +83,15 @@ module.exports =
 
   keyNotFound: (target, jsonPath, key) -> "Key '#{key}' is not in field
   '#{target}' of #{jsonPath}."
+
+  packageJsonAlreadyExists: (folder) -> "#{packageFilename} already exists in
+  #{folder}."
+
+  bootstrapPackage: (projName) ->
+    ["{"
+    "  \"name\": \"#{projName}\","
+    "  \"version\": \"0.0.0\""
+    "}"].join '\n'
+
+  successfulBootstrap: (folder) -> "Successfully bootstrapped #{folder} in the
+  current directory."

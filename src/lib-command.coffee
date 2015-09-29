@@ -22,15 +22,20 @@ getPackageFilePath = (basedir, cb) ->
 getPackageDirPath = (basedir, cb) -> getPackageFilePath basedir, (file) ->
   cb (if not file then null else path.dirname file)
 
-ident = (x) -> x
-getPackageContents = (basedir, packName, field, cb = ident, parse = ident) ->
+getPackageJsonText = (basedir, packName, cb) ->
   getPackageDirPath basedir, (dir) ->
     packPath = path.join dir, S.modulesFolder, packName, S.packageFilename
     if not path then cb S.noPackageJsonFound()
     else fs.readFile packPath, (err, content) ->
       if err then cb S.packageNotFound dir, packName
-      else cb null, (try parse (JSON.parse content)[field], packPath catch err
-        err.message)
+      else cb null, content.toString(), packPath
+
+ident = (x) -> x
+getPackageContents = (basedir, packName, field, cb = ident, parse = ident) ->
+  getPackageJsonText basedir, packName, (err, contents, packPath) ->
+    if err then cb err else cb null, (try
+        parse (JSON.parse contents)[field], packPath
+      catch err then err.message)
 
 isStringOrArray = (o) -> (typeof o is 'string') or (o instanceof Array)
 isObject = (o) -> (not isStringOrArray o) and o instanceof Object
@@ -124,10 +129,23 @@ version = (basedir, packName, keys, opts, cb) ->
   cb S.keyGivenNotSupported field, keys if keysGiven keys
   getPackageContents basedir, packName, field, cb
 
+bootstrap = (basedir, packName, keys, opts, cb) ->
+  newProjectName = (path.resolve basedir).replace /.*\//g, ""
+  getPackageDirPath basedir, (dir) ->
+    if not dir then cb S.noPackageJsonFound
+    else if (path.resolve dir) is process.cwd()
+      cb S.packageJsonAlreadyExists path.resolve dir
+    else
+      fs.writeFile S.packageFilename,
+        (S.bootstrapPackage newProjectName), (err) ->
+          if err then cb err.message
+          else cb null, S.successfulBootstrap newProjectName
+
 module.exports = {
   getPackageFile
   getPackageFilePath
   getPackageDirPath
+  getPackageJsonText
   getPackageContents
   isStringOrArray
   isObject
@@ -143,5 +161,6 @@ module.exports = {
     dynamicLink
     bin
     version
+    bootstrap
   }
 }
