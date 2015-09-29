@@ -221,3 +221,8 @@ Installs a package to the `c_modules` subdirectory of the folder containing the 
 - `remove <package>`
 
 Fails if no `package-cpm.json` file exists or the package named doesn't exist. Removes the package from the `c_modules/` folder and `package-cpm.json`.
+
+## publish
+- `publish`
+
+Publishes package to registry using the `package-cpm.json` of the current project. Asks for authentication, and fails if the package version hasn't been bumped since last time.
