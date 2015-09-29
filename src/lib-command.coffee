@@ -58,9 +58,9 @@ getFilesFromField = (field, basedir, packageName, keys, opts, cb) ->
         try fieldObj = (JSON.parse contents)[field] catch err then return cb err
         try
           selectors = if isObject fieldObj
-              if keys then throw S.noKeysForTarget field, packFile
+              throw S.noKeysForTarget field, packFile unless keys
               for key in keys
-                if key in fieldObj then fieldObj[key]
+                if key of fieldObj then fieldObj[key]
                 else throw S.keyNotFound field, packFile, key
             else if isStringOrArray fieldObj then fieldObj
             else throw S.invalidFieldType packFile, field
@@ -74,14 +74,28 @@ getFilesFromField = (field, basedir, packageName, keys, opts, cb) ->
               else cb err, lo.uniq cmds
         catch err then cb err
 
-include = (args..., opts, cb) ->
+usesFoldersMacro = (fun) -> (args..., opts, cb) ->
   if typeof opts is 'function'
     cb = opts
     opts = {folders:yes}
   else
     opts.folders = yes
+  fun args..., opts, cb
+
+exposedAPIMacro = (title, fun) -> (args..., opts, cb) ->
+  getFilesFromField title, args..., opts, (err, files) ->
+    if err then cb err else cb null, fun files
+
+include = usesFoldersMacro (args..., opts, cb) ->
   getFilesFromField 'include', args..., opts, (err, files) ->
-    if err then cb err else cb null, (files.map (f) -> "-I.#{f}").join ' '
+    if err then cb err else cb null, (files.map (f) ->
+      "-I#{path.relative process.cwd(), f}/").join ' '
+
+link = exposedAPIMacro 'link', (files) -> files.join ' '
+
+dynamic = (args..., opts, cb) ->
+  getFilesFromField 'dynamic', args..., opts, (err, files) ->
+    if err then cb err else cb null, files.join ' '
 
 module.exports = {
   getPackageFilePath
@@ -92,5 +106,8 @@ module.exports = {
   expandFileSelector
   getFoldersFromFiles
   getFilesFromField
+  # exposed API
   include
+  link
+  dynamic
 }
