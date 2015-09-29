@@ -1,4 +1,7 @@
+path = require 'path'
+
 packageFilename = 'package-cpm.json'
+modulesFolder = 'c_modules'
 
 module.exports =
   shortLongOptionMap:
@@ -52,5 +55,19 @@ module.exports =
   noPackageFound: "No #{packageFilename} found in current directory or any
   parent."
 
+  packageNotFound: (jsonDir, package) -> "package #{package} was not found in
+  #{path.join jsonDir, package}/"
+
+  invalidFieldType: (jsonPath, field) -> "field #{field} of #{jsonPath} is not
+  an object, array of strings, or string."
+
   commandNotFound: (cmd) -> ["Command #{cmd} not found. Run cpm -h for"
   "available commands."].join '\n'
+
+  noKeysForTarget: (target, jsonPath) -> "field #{target} of #{jsonPath} is
+  not an associative array."
+
+  keyNotFound: (target, jsonPath, key) -> "key #{key} is not in field #{target}
+  of #{jsonPath}."
+
+  modulesFolder: modulesFolder

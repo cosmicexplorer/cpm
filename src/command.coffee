@@ -2,7 +2,6 @@ fs = require 'fs'
 path = require 'path'
 
 S = require './strings'
-packMan = require './package'
 libCmd = require './lib-command'
 
 argv = require('minimist')(process.argv[2..])
@@ -26,12 +25,14 @@ else if help or (argv._.length is 0)
   console.log S.helpMsg
   process.exit 0
 else
-  packagePath = packMan.getPackageFilePath process.cwd()
-  errorOut S.noPackageFound
-  packageDir = path.dirname packagePath
-
-  command = argv._[0]
-  cmdFun = libCmd[command]
-  errorOut S.commandNotFound command unless cmdFun
-  output = cmdFun packageDir, argv._[1], argv._[2..], {noColor, server}
-  process.stdout.write output.join '\n'
+  packagePath = libCmd.getPackageFilePath process.cwd(), (path) ->
+    if path is null then errorOut S.noPackageFound
+    else
+      packageDir = path.dirname packagePath
+      command = argv._[0]
+      cmdFun = libCmd[command]
+      errorOut S.commandNotFound command unless cmdFun
+      cmdFun packageDir, argv._[1], argv._[2..],
+        {noColor, server}, (err, output) ->
+        if err then errorOut err
+        else process.stdout.write output.join '\n'
