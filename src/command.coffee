@@ -1,8 +1,8 @@
 fs = require 'fs'
 path = require 'path'
 
-S = require './strings'
-libCmd = require './lib-command'
+S = require "#{__dirname}/src/strings"
+libCmd = require "#{__dirname}/src/lib-command"
 
 argv = require('minimist')(process.argv[2..])
 
@@ -30,5 +30,5 @@ else
   errorOut S.commandNotFound command unless cmdFun
   cmdFun process.cwd(), argv._[1], argv._[2..],
     {noColor, server}, (err, output) ->
-    if err then errorOut err
-    else process.stdout.write output
+      if err then errorOut err
+      else console.log output

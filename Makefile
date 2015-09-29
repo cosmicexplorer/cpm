@@ -22,6 +22,7 @@ all: $(bin)
 $(bin): $(bin-base) $(out) $(DEPS)
 	echo '#!/usr/bin/env node' > $@
 	cat $< >> $@
+	chmod +x $@
 
 clean:
 	rm -f $(out)

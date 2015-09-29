@@ -5,22 +5,22 @@ async = require 'async'
 # _ = require 'lodash'
 glob = require 'glob'
 
-S = require './strings'
-colorize = require './colorize'
+S = require "#{__dirname}/strings"
+colorize = require "#{__dirname}/colorize"
 
 getPackageFile = (basedir) -> path.join basedir, S.packageFilename
 
 getPackageFilePath = (basedir, cb) ->
-    curFilePath = getPackageFile basedir
-    fs.stat curFilePath, (err, stat) ->
-      if err
-        parsed = path.parse path.resolve basedir
-        if parsed.root is parsed.dir then cb null
-        else getPackageFilePath (path.join basedir, '..'), cb
-      else cb curFilePath
+  curFilePath = getPackageFile basedir
+  fs.stat curFilePath, (err, stat) ->
+    if err
+      parsed = path.parse path.resolve basedir
+      if parsed.root is parsed.dir then cb null
+      else getPackageFilePath (path.join basedir, '..'), cb
+    else cb curFilePath
 
 getPackageDirPath = (basedir, cb) -> getPackageFilePath basedir, (file) ->
-  if not file then null else path.dirname file
+  cb (if not file then null else path.dirname file)
 
 isStringOrArray = (o) -> (typeof o is 'string') or (o instanceof Array)
 isObject = (o) -> (not isStringOrArray o) and o instanceof Object
@@ -31,16 +31,18 @@ expandFileSelector = (basedir, sel, cb) ->
   if sel instanceof Array
     async.map sel, ((selector, asyncCb) ->
       expandFileSelector basedir, selector, asyncCb),
-      (err, files) -> cb err, if err then null else lo.uniq lo.flatten files
+      (err, files) -> if err then cb err else cb null, lo.uniq lo.flatten files
   else if typeof sel is 'string' then glob sel, {cwd: basedir}, (err, files) ->
-    cb err, if err then null else files.map (f) -> path.join basedir, f
+    if err then cb err
+    else cb null, files.map (f) -> path.join basedir, f
   else cb new Error "invalid file selector #{sel}"
 
 statsAndFolder = (f, cb) -> fs.stat f, (err, res) ->
-  cb err, if (not err) and res.isDirectory() then f else path.dirname f
+  if err then cb err
+  else cb null, if res.isDirectory() then f else path.dirname f
 getFoldersFromFiles = (files, cb) ->
   async.map files, statsAndFolder, (err, folders) ->
-    cb err, if err then null else lo.uniq folders.filter (f) -> f?
+    if err then cb err else cb null, lo.uniq folders.filter (f) -> f?
 
 getFilesFromField = (field, basedir, packageName, keys, opts, cb) ->
   if typeof opts is 'function'
@@ -67,7 +69,8 @@ getFilesFromField = (field, basedir, packageName, keys, opts, cb) ->
             (err, sels) ->
               cmds = lo.flatten sels
               if err then cb err
-              else if opts?.folders then getFoldersFromFiles cmds, cb
+              else if opts?.folders
+                getFoldersFromFiles cmds, cb
               else cb err, lo.uniq cmds
         catch err then cb err
 
@@ -77,7 +80,7 @@ include = (args..., opts, cb) ->
     opts = {folders:yes}
   else
     opts.folders = yes
-  getFilesFromField 'include', {folders: yes}, args..., opts, (err, files) ->
+  getFilesFromField 'include', args..., opts, (err, files) ->
     if err then cb err else cb null, (files.map (f) -> "-I.#{f}").join ' '
 
 module.exports = {
