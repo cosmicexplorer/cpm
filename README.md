@@ -67,10 +67,6 @@ cpm is intended to be used with typical C tools, for C source. However, since C+
 
 cpm will be covered by the GPL, version 3 or later. See [the license](GPL.md) for more information. This does not affect the licensing of projects using it to download dependencies or projects which create cpm packages; see the [GPL FAQ](https://www.gnu.org/licenses/gpl-faq.en.html#CanIUseGPLToolsForNF).
 
-## SemVer?
-
-I really like [elm's method of package management](https://github.com/elm-lang/elm-package#publishing-updates), which automatically bumps the version according to [SemVer](http://semver.org/). Since strict inspection of API/ABI compatibility is possible with C (and also *extremely* important for C/C++ specifically), I would like to inspect the possibility of doing this for cpm.
-
 # TODO
 
 - [x] write readme
