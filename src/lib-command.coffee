@@ -1,9 +1,9 @@
 fs = require 'fs'
 path = require 'path'
 
-colors = require 'colors'
+colorize = require './colorize'
 
 module.exports =
   include: (basedir, packageName, keys, opts) ->
-    cmds = (getIncludeCommand basedir, packageName for key in keys).join '\n'
-    if opts.noColor then cmds else colorizeCommand cmds
+    cmds = (getIncludeCommand basedir, packageName for key in keys)
+    if opts.noColor then cmds else cmds.map colorize

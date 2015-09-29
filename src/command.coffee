@@ -1,5 +1,6 @@
 fs = require 'fs'
 path = require 'path'
+
 S = require './strings'
 packMan = require './package'
 libCmd = require './lib-command'
@@ -32,5 +33,5 @@ else
   command = argv._[0]
   cmdFun = libCmd[command]
   errorOut S.commandNotFound command unless cmdFun
-  process.stdout.write cmdFun packageDir, argv._[1], argv._[2..],
-    {noColor, server}
+  output = cmdFun packageDir, argv._[1], argv._[2..], {noColor, server}
+  process.stdout.write output.join '\n'

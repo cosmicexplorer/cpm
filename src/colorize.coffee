@@ -1,4 +1,3 @@
 colors = require 'colors'
 
-module.exports =
-  colorizeCommand: (str) ->
+module.exports = (str) ->
