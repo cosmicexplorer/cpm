@@ -197,13 +197,12 @@ install = (basedir, depDev, [packName, version_spec], opts, cb) ->
   if not validateDepDev depDev then cb S.invalidDepDev depDev
   else
     _getPackageDirPath basedir, (dir) ->
-      if not dir then return cb S.noPackageJsonFound
+      return cb S.noPackageJsonFound unless dir
       outPackageDir = path.join dir, S.modulesFolder, packName
-      outPackageFile = path.join outPackageDir, S.packageFilename
-      fs.read outPackageFile, (err, contents) ->
+      fs.readFile (path.join dir, S.packageFilename), (err, contents) ->
         return cb err if err
-        parsed = (JSON.parse contents).version
-        _getPackageJsonText basedir, (err, contents) ->
+        parsed = (JSON.parse contents).dependencies?[packName]
+        _getPackageJsonText basedir, packName, (err, contents) ->
           return cb err.message if err
           if compareVersionStrings parsed, (JSON.parse contents).version
             webCommands.install packName, (tarGZStream) ->
@@ -241,6 +240,7 @@ module.exports = {
     bootstrap
     search
     info
+    install
     remove
   }
 }

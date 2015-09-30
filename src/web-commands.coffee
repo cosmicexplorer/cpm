@@ -1,5 +1,7 @@
-{Parse} = require 'parse/node'
 fs = require 'fs'
+http = require 'http'
+
+{Parse} = require 'parse/node'
 {app_id, js_key} = JSON.parse fs.readFileSync "#{__dirname}/../parse-info.json"
 
 S = require './strings'
@@ -52,13 +54,24 @@ info = optionalOptionsMacro (name, opts, cb) ->
       switch packs.length
         when 0 then cb S.noSuchPackage name
         when 1 then cb null, formatInfo packs[0], opts
-        else cb S.internalError 'too many packages'
     error: (err) ->
       cb err.message
+
+getFileFromPackage = (pack, cb) ->
+  publish = pack.get 'recent'
+  http.get(publish.get('archive').url, (resp) ->
+    cb null, resp).on 'error', (err) -> cb err
 
 install = (packname, version_spec) ->
   query = new Parse.Query 'Package'
   query.limit 1
+  query.include 'recent'
+  query.equalTo 'name', packname
+  query.find
+    success: (packs) ->
+      switch packs.length
+        when 0 then cb S.noSuchPackage packname
+        when 1 then getFileFromPackage packs[0], cb
 
 module.exports = {
   search

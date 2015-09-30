@@ -64,7 +64,7 @@ module.exports =
 
   # use if package.json found for current project, but not for a dependency
   packageNotFound: (jsonDir, pack) -> "Package '#{pack}' was not found in
-  #{path.join jsonDir, S.modulesFolder, pack}/"
+  #{path.join jsonDir, modulesFolder, pack}/"
 
   invalidFieldType: (jsonPath, field) -> "Field '#{field}' of #{jsonPath} is not
   an object, array of strings, or string."
