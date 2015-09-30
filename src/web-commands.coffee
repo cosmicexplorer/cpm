@@ -59,10 +59,10 @@ info = optionalOptionsMacro (name, opts, cb) ->
 
 getFileFromPackage = (pack, cb) ->
   publish = pack.get 'recent'
-  http.get(publish.get('archive').url, (resp) ->
-    cb null, resp).on 'error', (err) -> cb err
+  http.get(publish.get('archive').url(), (resp) ->
+    cb null, publish.get('version'), resp).on 'error', cb
 
-install = (packname, version_spec) ->
+install = (packname, cb) ->
   query = new Parse.Query 'Package'
   query.limit 1
   query.include 'recent'

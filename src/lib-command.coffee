@@ -141,6 +141,7 @@ andFun = (a, b) -> a and b
 hyphenToCamel = (str) -> str.replace /\-(.)/, (total, g1) -> g1.toUpperCase()
 
 compareVersionStrings = (version, versionSpec) ->
+  return true unless versionSpec
   nums = version.split '.'
   specNums = versionSpec.split '.'
   try
@@ -195,21 +196,25 @@ bootstrap = (basedir, packName, keys, opts, cb) ->
 
 install = (basedir, depDev, [packName, version_spec], opts, cb) ->
   if not validateDepDev depDev then cb S.invalidDepDev depDev
-  else
-    _getPackageDirPath basedir, (dir) ->
-      return cb S.noPackageJsonFound unless dir
-      outPackageDir = path.join dir, S.modulesFolder, packName
-      fs.readFile (path.join dir, S.packageFilename), (err, contents) ->
-        return cb err if err
-        parsed = (JSON.parse contents).dependencies?[packName]
-        _getPackageJsonText basedir, packName, (err, contents) ->
-          return cb err.message if err
-          if compareVersionStrings parsed, (JSON.parse contents).version
-            webCommands.install packName, (tarGZStream) ->
-              tarGZStream.pipe(zlib.createGunzip())
-                .pipe(tar.extract outDir).on 'finish', ->
-                  cb null, S.successfulInstall outDir, packName
-          else cb S.dependencyError packName, parsed
+  else _getPackageDirPath basedir, (dir) ->
+    return cb S.noPackageJsonFound unless dir
+    myPackageJson = path.join dir, S.packageFilename
+    fs.readFile myPackageJson, (err, contents) ->
+      return cb err if err
+      parsed = JSON.parse contents
+      parsed.dependencies = {} unless parsed.dependencies
+      version = parsed.dependencies?[packName]
+      if compareVersionStrings version, version_spec
+        webCommands.install packName, (err, packVer, tarGZStream) ->
+          return cb err if err
+          outDir = path.join dir, S.modulesFolder, packName
+          tarGZStream.pipe(zlib.createGunzip())
+            .pipe(tar.extract outDir, {strict: no}).on 'finish', ->
+              parsed.dependencies[packName] = packVer
+              fs.writeFile myPackageJson, JSON.stringify parsed, (err) ->
+                if err then cb err.message
+                else cb null, S.successfulInstall outDir, packName
+      else cb S.dependencyError packName, version
 
 remove = (basedir, packName, keys, opts, cb) ->
   _getPackageDirPath basedir, (dir) ->
