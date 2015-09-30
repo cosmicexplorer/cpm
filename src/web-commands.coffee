@@ -56,7 +56,12 @@ info = optionalOptionsMacro (name, opts, cb) ->
     error: (err) ->
       cb err.message
 
+install = (packname, version_spec) ->
+  query = new Parse.Query 'Package'
+  query.limit 1
+
 module.exports = {
   search
   info
+  install
 }

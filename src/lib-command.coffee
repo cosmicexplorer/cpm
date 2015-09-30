@@ -1,13 +1,19 @@
 fs = require 'fs'
 path = require 'path'
+zlib = require 'zlib'
 
 async = require 'async'
 _ = require 'lodash'
 glob = require 'glob'
+tar = require 'tar-fs'
 
 S = require "#{__dirname}/strings"
 webCommands = require './web-commands'
 
+VERSION_STRING_LENGTH = 3
+
+
+# auxiliary methods
 _getPackageFile = (basedir) -> path.join basedir, S.packageFilename
 
 _getPackageFilePath = (basedir, cb) ->
@@ -111,10 +117,36 @@ ifNotExistThrow = (basedir, pack, cb) ->
     if err then cb S.packageNotFound basedir, pack
     else cb finalPathFolder
 
+
+validateDepDev = (str) -> str in S.validDepDevs
+
+numRegexMatch = (num) -> num.match /^[0-9]+/g
+compareVersionNums = (num1, num2) ->
+  if not numRegexMatch num1
+    throw new Error "invalid version string #{num1}"
+  if numRegexMatch num2 then return num1 is num2
+  else
+    switch (num2.match /^[^0-9]+/g)[0]
+      when '<=' then num2 >= num1
+      when '>=' then num2 <= num1
+      when '<' then num2 > num1
+      when '>' then num2 < num1
+      else throw new Error "invalid version string #{num2}"
+
+andFun = (a, b) -> a and b
+
 
 ### exposed API ###
 # utility methods
 hyphenToCamel = (str) -> str.replace /\-(.)/, (total, g1) -> g1.toUpperCase()
+
+compareVersionStrings = (version, versionSpec) ->
+  nums = version.split '.'
+  specNums = versionSpec.split '.'
+  try
+    (for i in [0..(VERSION_STRING_LENGTH - 1)]
+       compareVersionNums nums[i], specNums[i]).reduce andFun
+  catch err then return no
 
 
 # build system commands
@@ -160,6 +192,25 @@ bootstrap = (basedir, packName, keys, opts, cb) ->
         (S.bootstrapPackage newProjectName), (err) ->
           if err then cb err.message
           else cb null, S.successfulBootstrap newProjectName
+
+install = (basedir, depDev, [packName, version_spec], opts, cb) ->
+  if not validateDepDev depDev then cb S.invalidDepDev depDev
+  else
+    _getPackageDirPath basedir, (dir) ->
+      if not dir then return cb S.noPackageJsonFound
+      outPackageDir = path.join dir, S.modulesFolder, packName
+      outPackageFile = path.join outPackageDir, S.packageFilename
+      fs.read outPackageFile, (err, contents) ->
+        return cb err if err
+        parsed = (JSON.parse contents).version
+        _getPackageJsonText basedir, (err, contents) ->
+          return cb err.message if err
+          if compareVersionStrings parsed, (JSON.parse contents).version
+            webCommands.install packName, (tarGZStream) ->
+              tarGZStream.pipe(zlib.createGunzip())
+                .pipe(tar.extract outDir).on 'finish', ->
+                  cb null, S.successfulInstall outDir, packName
+          else cb S.dependencyError packName, parsed
 
 remove = (basedir, packName, keys, opts, cb) ->
   _getPackageDirPath basedir, (dir) ->
