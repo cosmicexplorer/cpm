@@ -19,7 +19,7 @@ Displays help roughly corresponding to this documentation.
 
 Displays version of cpm.
 
-- `-c|--no-color`
+- `-c <true|false>|--no-color=<true|false>`
 
 Stops colorization of output, if the command would have produced colorized output.
 

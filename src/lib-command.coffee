@@ -6,7 +6,7 @@ _ = require 'lodash'
 glob = require 'glob'
 
 S = require "#{__dirname}/strings"
-colorize = require "#{__dirname}/colorize"
+webCommands = require './web-commands'
 
 _getPackageFile = (basedir) -> path.join basedir, S.packageFilename
 
@@ -141,6 +141,12 @@ bootstrap = (basedir, packName, keys, opts, cb) ->
           if err then cb err.message
           else cb null, S.successfulBootstrap newProjectName
 
+search = (basedir, reg, posArgs, opts, cb) ->
+  webCommands.search (new RegExp reg, "gi"), opts, cb
+
+info = (basedir, name, posArgs, opts, cb) ->
+  webCommands.info name, opts, cb
+
 module.exports = {
   _getPackageFile
   _getPackageFilePath
@@ -162,5 +168,7 @@ module.exports = {
     bin
     version
     bootstrap
+    search
+    info
   }
 }

@@ -95,3 +95,7 @@ module.exports =
 
   successfulBootstrap: (folder) -> "Successfully bootstrapped #{folder} in the
   current directory."
+
+  noSuchPackageRegex: (reg) -> "No packages found matching regex '#{reg}.'"
+  noSuchPackage: (str) -> "No packages found with name '#{str}.'"
+  internalError: (err) -> "Internal error: #{err}."
