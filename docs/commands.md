@@ -43,9 +43,9 @@ $ cpm bin some-project -a
 ./c_modules/some-project/file.exe ./c_modules/some-project/file2.exe
 ```
 
-- `-s <server>|--server=<server>`
+- `-s <creds>|--server=<creds>`
 
-Specifies basename of server to link to for commands which access a registry.
+Specifies server basename to link to for commands which access a registry. See [server documentation](private-server.md) for details.
 
 # Querying Installed Packages
 

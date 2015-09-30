@@ -63,7 +63,7 @@ module.exports =
 
   # use if package.json found for current project, but not for a dependency
   packageNotFound: (jsonDir, pack) -> "Package '#{pack}' was not found in
-  #{path.join jsonDir, pack}/"
+  #{path.join jsonDir, S.modulesFolder, pack}/"
 
   invalidFieldType: (jsonPath, field) -> "Field '#{field}' of #{jsonPath} is not
   an object, array of strings, or string."
@@ -99,3 +99,6 @@ module.exports =
   noSuchPackageRegex: (reg) -> "No packages found matching regex '#{reg}.'"
   noSuchPackage: (str) -> "No packages found with name '#{str}.'"
   internalError: (err) -> "Internal error: #{err}."
+
+  packageCouldNotBeRemoved: (packName) -> "Package #{packName} could not be
+  removed (access error?)."

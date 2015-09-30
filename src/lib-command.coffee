@@ -105,9 +105,19 @@ getFilesFromPackageJsonMacro = (title, fun) -> (args..., opts, cb) ->
   _getFilesFromField title, args..., opts, (err, files) ->
     if err then cb err else cb null, fun files
 
-# exposed API
+ifNotExistThrow = (basedir, pack, cb) ->
+  finalPathFolder = path.join basedir, S.modulesFolder, pack
+  fs.stat finalPathFolder, (err) ->
+    if err then cb S.packageNotFound basedir, pack
+    else cb finalPathFolder
+
+
+### exposed API ###
+# utility methods
 hyphenToCamel = (str) -> str.replace /\-(.)/, (total, g1) -> g1.toUpperCase()
 
+
+# build system commands
 include = usesFoldersMacro getFilesFromPackageJsonMacro 'include', (files) ->
   (files.map (f) -> "-I#{f}/").join ' '
 
@@ -129,6 +139,16 @@ version = (basedir, packName, keys, opts, cb) ->
   cb S.keyGivenNotSupported field, keys if keysGiven keys
   _getPackageContents basedir, packName, field, cb
 
+
+# wrappers for web commands
+search = (basedir, reg, posArgs, opts, cb) ->
+  webCommands.search (new RegExp reg, "gi"), opts, cb
+
+info = (basedir, name, posArgs, opts, cb) ->
+  webCommands.info name, opts, cb
+
+
+# project management commands
 bootstrap = (basedir, packName, keys, opts, cb) ->
   newProjectName = (path.resolve basedir).replace /.*\//g, ""
   _getPackageDirPath basedir, (dir) ->
@@ -141,11 +161,11 @@ bootstrap = (basedir, packName, keys, opts, cb) ->
           if err then cb err.message
           else cb null, S.successfulBootstrap newProjectName
 
-search = (basedir, reg, posArgs, opts, cb) ->
-  webCommands.search (new RegExp reg, "gi"), opts, cb
-
-info = (basedir, name, posArgs, opts, cb) ->
-  webCommands.info name, opts, cb
+remove = (basedir, packName, keys, opts, cb) ->
+  _getPackageDirPath basedir, (dir) ->
+    return cb S.noPackageJsonFound unless dir
+    ifNotExistThrow dir, packName, (folder) ->
+      fs.rmdir folder, (err) -> cb S.packageCouldNotBeRemoved packName
 
 module.exports = {
   _getPackageFile
@@ -170,5 +190,6 @@ module.exports = {
     bootstrap
     search
     info
+    remove
   }
 }
