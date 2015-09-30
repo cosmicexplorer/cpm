@@ -3,11 +3,11 @@ path = require 'path'
 zlib = require 'zlib'
 
 async = require 'async'
-_ = require 'lodash'
+lo = require 'lodash'
 glob = require 'glob'
 tar = require 'tar-fs'
 
-S = require "#{__dirname}/strings"
+S = require "./strings"
 webCommands = require './web-commands'
 
 VERSION_STRING_LENGTH = 3
@@ -28,7 +28,7 @@ _getPackageFilePath = (basedir, cb) ->
 _getPackageDirPath = (basedir, cb) -> _getPackageFilePath basedir, (file) ->
   cb (if not file then null else path.dirname file)
 
-_getPackageJsonText = (basedir, packName, cb) ->
+_getJsonTextOfPackage = (basedir, packName, cb) ->
   _getPackageDirPath basedir, (dir) ->
     packPath = path.join dir, S.modulesFolder, packName, S.packageFilename
     if not path then cb S.noPackageJsonFound()
@@ -38,7 +38,7 @@ _getPackageJsonText = (basedir, packName, cb) ->
 
 ident = (x) -> x
 _getPackageContents = (basedir, packName, field, cb = ident, parse = ident) ->
-  _getPackageJsonText basedir, packName, (err, contents, packPath) ->
+  _getJsonTextOfPackage basedir, packName, (err, contents, packPath) ->
     if err then cb err else cb null, (try
         parse (JSON.parse contents)[field], packPath
       catch err then err.message)
@@ -50,7 +50,7 @@ _isObject = (o) -> (not _isStringOrArray o) and o instanceof Object
 _expandFileSelector = (basedir, sel, cb) ->
   if sel instanceof Array
     async.map sel, ((selector, f) -> _expandFileSelector basedir, selector, f),
-      (err, files) -> if err then cb err else cb null, _.uniq _.flatten files
+      (err, files) -> if err then cb err else cb null, lo.uniq lo.flatten files
   else if typeof sel is 'string' then glob sel, {cwd: basedir}, (err, files) ->
     if err then cb err else cb null, files.map (f) -> path.join basedir, f
   else cb new Error "invalid file selector #{sel}"
@@ -60,7 +60,7 @@ statsAndFolder = (f, cb) -> fs.stat f, (err, res) ->
   else cb null, if res.isDirectory() then f else path.dirname f
 _getFoldersFromFiles = (files, cb) ->
   async.map files, statsAndFolder, (err, folders) ->
-    if err then cb err else cb null, _.uniq folders.filter (f) -> f?
+    if err then cb err else cb null, lo.uniq folders.filter (f) -> f?
 
 keysGiven = (keysObj) -> keysObj and keysObj.length > 0
 
@@ -77,10 +77,10 @@ getSelectors = (fieldObj, opts, keys, field, packFile) ->
   else throw S.invalidFieldType packFile, field
 
 flattenSelections = (opts, cb) -> (err, sels) ->
-  cmds = (_.flatten sels).map (f) -> path.relative process.cwd(), f
+  cmds = (lo.flatten sels).map (f) -> path.relative process.cwd(), f
   if err then cb err
   else if opts?.folders then _getFoldersFromFiles cmds, cb
-  else cb err, _.uniq cmds
+  else cb err, lo.uniq cmds
 
 getAllFilesFromSelection = (folder, opts) -> (sel, cb) ->
   _expandFileSelector folder, sel, cb
@@ -117,37 +117,38 @@ ifNotExistThrow = (basedir, pack, cb) ->
     if err then cb S.packageNotFound basedir, pack
     else cb finalPathFolder
 
-
 validateDepDev = (str) -> str in S.validDepDevs
 
 numRegexMatch = (num) -> num.match /^[0-9]+/g
-compareVersionNums = (num1, num2) ->
-  if not numRegexMatch num1
-    throw new Error "invalid version string #{num1}"
-  if numRegexMatch num2 then return num1 is num2
-  else
-    switch (num2.match /^[^0-9]+/g)[0]
-      when '<=' then num2 >= num1
-      when '>=' then num2 <= num1
-      when '<' then num2 > num1
-      when '>' then num2 < num1
-      else throw new Error "invalid version string #{num2}"
-
-andFun = (a, b) -> a and b
+doComparison = (num, specNum, comparison, version_spec) ->
+  switch comparison
+    when '<=' then specNum >= num
+    when '>=' then specNum <= num
+    when '<' then specNum > num
+    when '>' then specNum < num
+    else throw new Error "invalid version string #{version_spec}"
 
 
 ### exposed API ###
 # utility methods
 hyphenToCamel = (str) -> str.replace /\-(.)/, (total, g1) -> g1.toUpperCase()
 
-compareVersionStrings = (version, versionSpec) ->
-  return true unless versionSpec
+compareVersionStrings = (version, version_spec) ->
+  return yes unless version_spec
   nums = version.split '.'
-  specNums = versionSpec.split '.'
-  try
-    (for i in [0..(VERSION_STRING_LENGTH - 1)]
-       compareVersionNums nums[i], specNums[i]).reduce andFun
-  catch err then return no
+  specNums = version_spec.split '.'
+  comparison = null
+  for i in [0..(VERSION_STRING_LENGTH - 1)]
+    if comparison
+      return no unless numRegexMatch specNums[i]
+    else if not numRegexMatch specNums[i]
+      nonNumeric = specNums[i].replace /[0-9]/g, ""
+      numeric = specNums[i].replace /[^0-9]/g, ""
+      if not doComparison nums[i], numeric, nonNumeric, version_spec
+        return no
+      comparison = nonNumeric
+    else return no if nums[i] isnt specNums[i]
+  yes
 
 
 # build system commands
@@ -159,9 +160,9 @@ link = getFilesFromPackageJsonMacro 'link', (files) -> files.join ' '
 dynamic = getFilesFromPackageJsonMacro 'dynamic', (files) -> files.join ' '
 
 dynamicLink = getFilesFromPackageJsonMacro 'dynamic', (files) ->
-  folders = _.uniq (files.map (f) ->
+  folders = lo.uniq (files.map (f) ->
     "-L#{path.dirname f}/")
-  filesCleaned = _.uniq (files.map (f) ->
+  filesCleaned = lo.uniq (files.map (f) ->
     '-l' + ((path.basename f).replace /^lib|\.so$/gi, ""))
   (folders.concat filesCleaned).join ' '
 
@@ -185,8 +186,8 @@ info = (basedir, name, posArgs, opts, cb) ->
 bootstrap = (basedir, packName, keys, opts, cb) ->
   newProjectName = (path.resolve basedir).replace /.*\//g, ""
   _getPackageDirPath basedir, (dir) ->
-    if not dir then cb S.noPackageJsonFound
-    else if (path.resolve dir) is process.cwd()
+    if dir
+      console.log arguments
       cb S.packageJsonAlreadyExists path.resolve dir
     else
       fs.writeFile S.packageFilename,
@@ -194,6 +195,7 @@ bootstrap = (basedir, packName, keys, opts, cb) ->
           if err then cb err.message
           else cb null, S.successfulBootstrap newProjectName
 
+# TODO: assume latest if version_spec not given
 install = (basedir, depDev, [packName, version_spec], opts, cb) ->
   if not validateDepDev depDev then cb S.invalidDepDev depDev
   else _getPackageDirPath basedir, (dir) ->
@@ -207,11 +209,14 @@ install = (basedir, depDev, [packName, version_spec], opts, cb) ->
       if compareVersionStrings version, version_spec
         webCommands.install packName, (err, packVer, tarGZStream) ->
           return cb err if err
-          outDir = path.join dir, S.modulesFolder, packName
+          outDir = path.join dir, S.modulesFolder
           tarGZStream.pipe(zlib.createGunzip())
+            # TODO: make the output folder the same name as the package! may
+            # have to edit tar entries during extraction
             .pipe(tar.extract outDir, {strict: no}).on 'finish', ->
               parsed.dependencies[packName] = packVer
-              fs.writeFile myPackageJson, JSON.stringify parsed, (err) ->
+              str = JSON.stringify parsed, null, 2
+              fs.writeFile myPackageJson, str, (err) ->
                 if err then cb err.message
                 else cb null, S.successfulInstall outDir, packName
       else cb S.dependencyError packName, version
@@ -226,7 +231,7 @@ module.exports = {
   _getPackageFile
   _getPackageFilePath
   _getPackageDirPath
-  _getPackageJsonText
+  _getJsonTextOfPackage
   _getPackageContents
   _isStringOrArray
   _isObject
