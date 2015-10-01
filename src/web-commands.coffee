@@ -84,7 +84,7 @@ info = optionalOptionsMacro (name, opts, cb) ->
 
 getFileFromPackage = (pack, cb) ->
   publish = pack.get 'recent'
-  http.get(publish.get('archive').url(), (err, resp) ->
+  http.get(publish.get('archive').url(), (resp) ->
     cb null, publish.get('version'), resp).on 'error', cb
 
 # TODO: make this respect versions

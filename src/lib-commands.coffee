@@ -34,11 +34,16 @@ getCurrentPackageText = (basedir, cb) ->
     return cb S.noPackageJsonFound unless packPath
     fs.readFile packPath, (err, res) -> cb err, res.toString()
 
-getJsonTextOfPackage = (basedir, packName, cb) ->
+getPathOfPackageConfigFile = (basedir, packName, cb) ->
   getJsonDirPath basedir, (dir) ->
+    return cb S.noPackageJsonFound unless dir
     packPath = path.join dir, S.modulesFolder, packName, S.packageFilename
-    if not path then cb S.noPackageJsonFound()
-    else fs.readFile packPath, (err, content) ->
+    cb null, packPath
+
+getJsonTextOfPackage = (basedir, packName, cb) ->
+  getPathOfPackageConfigFile basedir, packName, (err, packPath) ->
+    return cb err if err
+    fs.readFile packPath, (err, content) ->
       if err then cb S.packageNotFound dir, packName
       else cb null, content.toString(), packPath
 
@@ -140,26 +145,30 @@ ensureModulesFolderBuilt = (basedir, cb) ->
     if err then fs.mkdir modulesFolder, (err) -> cb err, modulesFolder
     else cb null, modulesFolder
 
-extractTarToDir = (dir, packName, depField, parsed, packageJsonPath, packVer,
-  tarGZStream, cb) ->
+extractTarToDir = (dir, packName, depField, packVer, tarGZStream, cb) ->
+  outDir = null
   async.waterfall [
     (cb) -> ensureModulesFolderBuilt dir, cb
     (modulesFolder, cb) ->
       outDir = path.join modulesFolder, packName
       fs.stat outDir, (err) ->
-        return cb null, outDir, modulesFolder if err
-        rimraf outDir, (err) -> cb err, outDir, modulesFolder
-    (outDir, modulesFolder, cb) ->
-      console.log parsed
+        return cb null, modulesFolder if err
+        rimraf outDir, (err) -> cb err, modulesFolder
+    (modulesFolder, cb) ->
       tarGZStream.pipe zlib.createGunzip()
         .pipe(tar.extract outDir, {strict: no})
-        .on('finish', ->
-          if not parsed[depField]?
-            parsed[depField] = {}
-          parsed[depField][packName] = packVer
-          str = JSON.stringify parsed, null, 2
-          fs.writeFile packageJsonPath, str, (err) -> cb err, outDir)
-        .on 'error', cb],
+        .on('finish', -> cb null)
+        .on 'error', cb
+    (cb) ->
+      jsonPath = path.join dir, S.packageFilename
+      fs.readFile jsonPath, (err, contents) -> cb err, jsonPath, contents
+    (jsonPath, contents) ->
+      parsed = JSON.parse contents
+      if not parsed[depField]?
+        parsed[depField] = {}
+        parsed[depField][packName] = packVer
+        str = JSON.stringify parsed, null, 2
+        fs.writeFile jsonPath, str, (err) -> cb err, outDir],
     cb
 
 
@@ -232,8 +241,6 @@ bootstrap = (basedir, packName, keys, opts, cb) ->
 # TODO: install all from package.json if no depDev, packName given
 install = (basedir, depDev, [packName, version_spec], opts, cb) ->
   dir = null
-  packageJsonPath = null
-  parsed = null
   depField = null
   if not S.validDepDevs[depDev] then cb S.invalidDepDev depDev
   else async.waterfall [
@@ -242,7 +249,6 @@ install = (basedir, depDev, [packName, version_spec], opts, cb) ->
       if not dirFound then cb S.noPackageJsonFound
       else
         dir = dirFound
-        packageJsonPath = path.join dir, S.packageFilename
         cb null
     # read package file
     (cb) ->
@@ -250,14 +256,11 @@ install = (basedir, depDev, [packName, version_spec], opts, cb) ->
         S.packageFilename
       fs.readFile packageConfigFilePath, (err, contents) ->
         # pretend file is 0.0.0 if doesn't exist
-        parsed = if err then null else JSON.parse contents
-        cb null
+        cb null, (if err then null else JSON.parse contents)
     # get old version
-    (cb) ->
+    (parsed, cb) ->
+      return cb null unless parsed
       depField = S.validDepDevs[depDev]
-      if not parsed?
-        parsed = {}
-        return cb null
       return cb S.invalidDepDev depDev unless depField
       parsed[depField] = {} unless parsed[depField]
       prevVersion = parsed[depField][packName]
@@ -265,8 +268,7 @@ install = (basedir, depDev, [packName, version_spec], opts, cb) ->
         cb S.dependencyError packName, prevVersion, version_spec
       else cb null
     (cb) -> webCommands.install packName, cb
-    (args...) -> extractTarToDir dir, packName, depField, parsed,
-      packageJsonPath, args...],
+    (args...) -> extractTarToDir dir, packName, depField, args...],
     (err, outDir) -> cb err, S.successfulInstall outDir, packName
 
 remove = (basedir, packName, keys, opts, cb) ->
