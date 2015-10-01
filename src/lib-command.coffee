@@ -237,13 +237,11 @@ remove = (basedir, packName, keys, opts, cb) ->
 publish = (basedir, packName, keys, opts, cb) ->
   async.waterfall [
     # get package dir
-    (cb) ->
-      _getPackageDirPath basedir, (dir) ->
-        if dir then cb null, dir else cb S.noPackageJsonFound
+    (cb) -> _getPackageDirPath basedir, (dir) ->
+      if dir then cb null, dir else cb S.noPackageJsonFound
     # get package-cpm.json contents
-    (dir, cb) ->
-      fs.readFile (path.join dir, S.packageFilename), (err, res) ->
-        cb err, dir, JSON.parse res
+    (dir, cb) -> fs.readFile (path.join dir, S.packageFilename), (err, res) ->
+      cb err, dir, JSON.parse res
     # make tar.gz of current package's contents
     (dir, pkgJson, cb) ->
       tarGZStream = (tar.pack dir).pipe(zlib.createGzip()).pipe(base64.encode())

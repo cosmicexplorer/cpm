@@ -57,7 +57,7 @@ search = optionalOptionsMacro (reg, {noColor = null} = {}, cb) ->
         res = colorize res unless noColor
         cb null, res.join '\n'
       else cb S.noSuchPackageRegex reg
-    error: (err) -> cb err.message
+    error: parseHandleError cb
 
 formatInfo = (pack, {noColor = null} = {}) ->
   {name, version, description} = getPackDesc pack
@@ -75,7 +75,7 @@ getPackageByName = (name, cb) ->
       switch packs.length
         when 0 then cb S.noSuchPackage name
         when 1 then cb null, packs[0]
-    error: (err) -> cb err.message
+    error: parseHandleError cb
 
 info = optionalOptionsMacro (name, opts, cb) ->
   getPackageByName name, (err, pack) ->
@@ -137,9 +137,8 @@ Publish = Parse.Object.extend 'Publish'
 publish = ({name, version, description}, tarGZBuffer, cb) ->
   async.waterfall [login
     # get prev package if exists
-    (cb) ->
-      getPackageByName name, (err, pack) ->
-        cb null, (if err then {isNewPackage: yes} else pack)
+    (cb) -> getPackageByName name, (err, pack) ->
+      cb null, (if err then {isNewPackage: yes} else pack)
     (pack, cb) -> makePackageCheckVersion pack, name, version, cb
     (pack, cb) ->
       postNewPublish pack, name, version, description, tarGZBuffer, cb],
