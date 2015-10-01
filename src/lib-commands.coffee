@@ -139,7 +139,7 @@ compareVersionStrings = (version, version_spec) ->
   nums = version.split '.'
   specNums = version_spec.split '.'
   comparison = null
-  for i in [0..(VERSION_STRING_LENGTH - 1)]
+  try for i in [0..(VERSION_STRING_LENGTH - 1)]
     if comparison
       return no unless numRegexMatch specNums[i]
     else if not numRegexMatch specNums[i]
@@ -149,6 +149,7 @@ compareVersionStrings = (version, version_spec) ->
         return no
       comparison = nonNumeric
     else return no if nums[i] isnt specNums[i]
+  catch then return no
   yes
 
 
