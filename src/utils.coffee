@@ -6,11 +6,12 @@ indexAndGetNumeric = (i, arrs...) -> arrs.map (arr) ->
   arr[i].replace /[^0-9]/g, ""
 
 module.exports =
-
   # preserve first argument of function for async calls with error arg
   curryAsync: (beginArgs..., fn) -> (args...) ->
     fn args[0], beginArgs..., args[1..]...
 
+  # compares version_spec to a version string as specified in
+  # ../docs/package-cpm.json-spec.md
   compareVersionStrings: (version, version_spec) ->
     return no unless version_spec? and version?
     nums = version.split '.'
