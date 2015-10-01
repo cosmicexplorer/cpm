@@ -17,6 +17,11 @@ VERSION_STRING_LENGTH = 3
 
 
 # auxiliary methods
+
+# preserve first argument of function for async calls with error arg
+curryAsync = (fn, beginArgs...) -> (args...) ->
+  fn args[0], beginArgs..., args[1..]...
+
 getJsonPath = (basedir, cb) ->
   curFilePath = path.join basedir, S.packageFilename
   fs.stat curFilePath, (err, stat) ->
@@ -166,9 +171,9 @@ extractTarToDir = (dir, packName, depField, packVer, tarGZStream, cb) ->
       parsed = JSON.parse contents
       if not parsed[depField]?
         parsed[depField] = {}
-        parsed[depField][packName] = packVer
-        str = JSON.stringify parsed, null, 2
-        fs.writeFile jsonPath, str, (err) -> cb err, outDir],
+      parsed[depField][packName] = packVer
+      str = JSON.stringify parsed, null, 2
+      fs.writeFile jsonPath, str, (err) -> cb err, outDir],
     cb
 
 
@@ -177,8 +182,7 @@ extractTarToDir = (dir, packName, depField, packVer, tarGZStream, cb) ->
 hyphenToCamel = (str) -> str.replace /\-(.)/g, (total, g1) -> g1.toUpperCase()
 
 compareVersionStrings = (version, version_spec) ->
-  return yes unless version_spec
-  return no unless version
+  return no unless (version_spec and version)
   nums = version.split '.'
   specNums = version_spec.split '.'
   comparison = null
@@ -259,26 +263,43 @@ install = (basedir, depDev, [packName, version_spec], opts, cb) ->
         cb null, (if err then null else JSON.parse contents)
     # get old version
     (parsed, cb) ->
-      return cb null unless parsed
       depField = S.validDepDevs[depDev]
+      return cb null unless parsed
       return cb S.invalidDepDev depDev unless depField
-      parsed[depField] = {} unless parsed[depField]
-      prevVersion = parsed[depField][packName]
+      prevVersion = parsed[depField]?[packName]
       if compareVersionStrings prevVersion, version_spec
         cb S.dependencyError packName, prevVersion, version_spec
       else cb null
-    (cb) -> webCommands.install packName, cb
+    (cb) ->
+      webCommands.install packName, cb
     (args...) -> extractTarToDir dir, packName, depField, args...],
     (err, outDir) -> cb err, S.successfulInstall outDir, packName
 
 remove = (basedir, packName, keys, opts, cb) ->
+  return cb S.keyMakesNoSense 'remove' if keys?.length
   async.waterfall [
+    # get project root
     (cb) -> getJsonDirPath basedir, (dir) ->
       if dir then cb null, dir else cb S.noPackageJsonFound
-    (dir, cb) -> getPackageDir dir, packName, cb
-    (folder, cb) -> rimraf folder, (err) -> if err
+    # get location of package's folder
+    (dir, cb) -> getPackageDir dir, packName, curryAsync cb, dir
+    # remove package's folder
+    (dir, folder, cb) ->
+      rimraf folder, (err) -> if err
         cb S.packageCouldNotBeRemoved packName
-      else cb null
+      else cb null, dir
+    # get project json
+    (dir, cb) ->
+      packJsonPath = path.join dir, S.packageFilename
+      fs.readFile packJsonPath, curryAsync cb, packJsonPath
+    # read content and update (devD|d)ependencies
+    (packJsonPath, contents, cb) ->
+      parsed = JSON.parse contents
+      for k, v of S.validDepDevs
+        if parsed[v]?
+          delete parsed[v][packName]
+          delete parsed[v] if Object.keys(parsed[v]).length is 0
+      fs.writeFile packJsonPath, (JSON.stringify parsed, null, 2), cb
     ], (err) -> cb err, S.removeSuccessful packName
 
 publish = (basedir, packName, keys, opts, cb) ->
