@@ -67,7 +67,6 @@ getFoldersFromFiles = (files, cb) ->
   async.map files, statsAndFolder, (err, folders) ->
     if err then cb err else cb null, lo.uniq folders.filter (f) -> f?
 
-
 getSelectors = (fieldObj, opts, keys, field, packFile) ->
   if isObject fieldObj
     if opts.allTargets then (v for k, v of fieldObj)
@@ -171,9 +170,7 @@ dynamicLink = getFilesFromPackageJsonMacro 'dynamic', (files) ->
 bin = getFilesFromPackageJsonMacro 'bin', (files) -> files.join ' '
 
 version = (basedir, packName, keys, opts, cb) ->
-  field = 'version'
-  cb S.keyGivenNotSupported field, keys if keysGiven keys
-  getPackageContents basedir, packName, field, cb
+  getPackageContents basedir, packName, 'version', cb
 
 
 # wrappers for web commands
@@ -197,8 +194,14 @@ bootstrap = (basedir, packName, keys, opts, cb) ->
           if err then cb err.message
           else cb null, S.successfulBootstrap newProjectName
 
-extractTarToDir = (packVer, tarGZStream, cb) ->
-
+extractTarToDir = (dir, packName, depField, parsed, packVer, tarGZStream, cb) ->
+  outDir = path.join dir, S.modulesFolder, packName
+  tarGZStream.pipe zlib.createGunzip().pipe(tar.extract outDir, {strict: no})
+    .on('finish', ->
+      parsed[depField][packName] = packVer
+      str = JSON.stringify parsed, null, 2
+      fs.writeFile packageJsonPath, str, (err) -> cb err, outDir)
+    .on 'error', cb
 
 # TODO: assume latest if version_spec not given
 # TODO: install all from package.json if no depDev, packName given
@@ -206,6 +209,7 @@ install = (basedir, depDev, [packName, version_spec], opts, cb) ->
   dir = null
   packageJsonPath = null
   parsed = null
+  depField = null
   if S.validDepDevs[depDev] then cb S.invalidDepDev depDev
   else async.waterfall [
     # get json dir
@@ -229,17 +233,11 @@ install = (basedir, depDev, [packName, version_spec], opts, cb) ->
       prevVersion = parsed[depField][packName]
       if compareVersionStrings version, version_spec
         cb S.dependencyError packName, prevVersion, version_spec
-      else cb null
+      else cb null, depField
     # install from web
     (cb) -> webCommands.install packName cb
-    (packVer, tarGZStream, cb) ->
-      outDir = path.join dir, S.modulesFolder, packName
-      tarGZStream.pipe zlib.createGunzip()
-        .pipe(tar.extract outDir, {strict: no}).on('finish', ->
-          parsed[depField][packName] = packVer
-          str = JSON.stringify parsed, null, 2
-          fs.writeFile packageJsonPath, str, (err) ->
-            cb err, outDir).on 'error', cb],
+    (args...) -> extractTarToDir dir, packName, depField, parsed,
+      packageJsonPath, args...],
     (err, outDir) -> cb err, S.successfulInstall outDir, packName
 
 remove = (basedir, packName, keys, opts, cb) ->
@@ -250,7 +248,7 @@ remove = (basedir, packName, keys, opts, cb) ->
     (folder, cb) -> fs.rmdir folder, (err) -> if err
         cb S.packageCouldNotBeRemoved packName
       else cb null
-    ], (err) -> cb err
+    ], (err) -> cb err, S.removeSuccessful packName
 
 publish = (basedir, packName, keys, opts, cb) ->
   async.waterfall [

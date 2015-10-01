@@ -105,6 +105,8 @@ module.exports =
 
   packageCouldNotBeRemoved: (packName) -> "Package #{packName} could not be
   removed (access error?)."
+  removeSuccessful: (packName) -> "Package #{packName} was removed successfully
+  removed."
 
   validDepDevs: (k for k of validDepDevs)
   invalidDepDev: (str) -> "'#{str}' is not a valid dependency specifier. Please
