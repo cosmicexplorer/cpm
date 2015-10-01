@@ -117,8 +117,6 @@ ifNotExistThrow = (basedir, pack, cb) ->
     if err then cb S.packageNotFound basedir, pack
     else cb finalPathFolder
 
-validateDepDev = (str) -> str in S.validDepDevs
-
 numRegexMatch = (num) -> num.match /^[0-9]+/g
 doComparison = (num, specNum, comparison, version_spec) ->
   switch comparison
@@ -197,29 +195,31 @@ bootstrap = (basedir, packName, keys, opts, cb) ->
 
 # TODO: assume latest if version_spec not given
 install = (basedir, depDev, [packName, version_spec], opts, cb) ->
-  if not validateDepDev depDev then cb S.invalidDepDev depDev
+  if S.validDepDevs[depDev] then cb S.invalidDepDev depDev
   else _getPackageDirPath basedir, (dir) ->
     return cb S.noPackageJsonFound unless dir
     myPackageJson = path.join dir, S.packageFilename
     fs.readFile myPackageJson, (err, contents) ->
       return cb err if err
       parsed = JSON.parse contents
-      parsed.dependencies = {} unless parsed.dependencies
-      version = parsed.dependencies?[packName]
-      if compareVersionStrings version, version_spec
+      depField = S.validDepDevs[depDev]
+      parsed[depField] = {} unless parsed[depField]
+      version = parsed[depField][packName]
+      if not compareVersionStrings version, version_spec
+        cb S.dependencyError packName, version
+      else
         webCommands.install packName, (err, packVer, tarGZStream) ->
           return cb err if err
-          outDir = path.join dir, S.modulesFolder
+          outDir = path.join dir, S.modulesFolder, packName
           tarGZStream.pipe(zlib.createGunzip())
-            # TODO: make the output folder the same name as the package! may
-            # have to edit tar entries during extraction
+            # n.b.: the archive must not have a folder at top level! should
+            # extract the root of the repo directly wherever it's extracted to
             .pipe(tar.extract outDir, {strict: no}).on 'finish', ->
-              parsed.dependencies[packName] = packVer
+              parsed[depField][packName] = packVer
               str = JSON.stringify parsed, null, 2
               fs.writeFile myPackageJson, str, (err) ->
                 if err then cb err.message
                 else cb null, S.successfulInstall outDir, packName
-      else cb S.dependencyError packName, version
 
 remove = (basedir, packName, keys, opts, cb) ->
   _getPackageDirPath basedir, (dir) ->
@@ -239,6 +239,7 @@ module.exports = {
   _getFoldersFromFiles
   _getFilesFromField
   # exposed API
+  compareVersionStrings
   hyphenToCamel
   commands: {
     include

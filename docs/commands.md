@@ -225,4 +225,11 @@ Fails if no `package-cpm.json` file exists or the package named doesn't exist. R
 ## publish
 - `publish`
 
-Publishes package to registry using the `package-cpm.json` of the current project. Asks for authentication, and fails if the package version hasn't been bumped since last time.
+Publishes package to registry using the `package-cpm.json` of the current project. Prompts for authentication, and fails if the package version hasn't been bumped since last time.
+
+# Creating a User
+
+## register
+- `register`
+
+Prompts for username and password. Errors out if username already taken. `publish` can be called called after using this.

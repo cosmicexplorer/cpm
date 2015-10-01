@@ -1,15 +1,36 @@
 fs = require 'fs'
 http = require 'http'
 
+async = require 'async'
+prompt = require 'prompt'
 {Parse} = require 'parse/node'
 {app_id, js_key} = JSON.parse fs.readFileSync "#{__dirname}/../parse-info.json"
 
 S = require './strings'
 colorize = require './colorize'
+libCmd = require './lib-command'
 
 SearchLimit = 50
 
 Parse.initialize app_id, js_key
+
+parseGetVals = (parseObj, keys) ->
+  res = {}
+  for k in keys
+    res[k] = parseObj.get k
+  res
+
+parseSetVals = (parseObj, obj) ->
+  for k, v of obj
+    parseObj.set k, v
+  parseObj
+
+parseMakePointer = (Class, id) ->
+  __type: 'Pointer'
+  className: Class
+  objectId: id
+
+parseHandleError = (cb) -> (err) -> cb err.message
 
 optionalOptionsMacro = (fun) -> (arg, opts, cb) ->
   if typeof opts is 'function' then fun arg, null, opts
@@ -44,7 +65,7 @@ formatInfo = (pack, {noColor = null} = {}) ->
     "version: #{version}"
     "description: #{description}"]).join '\n'
 
-info = optionalOptionsMacro (name, opts, cb) ->
+getPackageByName = (name, cb) ->
   query = new Parse.Query 'Package'
   query.limit 1
   query.include 'recent'
@@ -53,28 +74,92 @@ info = optionalOptionsMacro (name, opts, cb) ->
     success: (packs) ->
       switch packs.length
         when 0 then cb S.noSuchPackage name
-        when 1 then cb null, formatInfo packs[0], opts
-    error: (err) ->
-      cb err.message
+        when 1 then cb null, packs[0]
+    error: (err) -> cb err.message
+
+info = optionalOptionsMacro (name, opts, cb) ->
+  getPackageByName name, (err, pack) ->
+    return cb err if err
+    cb null, formatInfo packs[0], opts
 
 getFileFromPackage = (pack, cb) ->
   publish = pack.get 'recent'
   http.get(publish.get('archive').url(), (resp) ->
     cb null, publish.get('version'), resp).on 'error', cb
 
-install = (packname, cb) ->
-  query = new Parse.Query 'Package'
-  query.limit 1
-  query.include 'recent'
-  query.equalTo 'name', packname
-  query.find
-    success: (packs) ->
-      switch packs.length
-        when 0 then cb S.noSuchPackage packname
-        when 1 then getFileFromPackage packs[0], cb
+install = (name, cb) ->
+  getPackageByName name, (err, pack) ->
+    return cb err if err
+    getFileFromPackage pack, cb
+
+login = (cb) ->
+  prompt.start()
+  prompt.get ['username', 'password'], (err, res) ->
+    Parse.User.logIn res.username, res.password,
+      success: (user) -> cb null
+      error: parseHandleError cb
+
+makePackageCheckVersion = (pack, cb) ->
+  if not pack.isNewPackage
+    getPackageByName name, (err, cb) ->
+      recent = pack.get 'recent'
+      # if version is not greater than the most recent version
+      recentVersion = recent.get 'version'
+      if not libCmd.compareVersionStrings version, ('>=' + recentVersion)
+        cb S.mustBumpVersion name, version, recentVersion
+      else cb null, pack
+  else
+    pack = new Package
+    parseSetVals pack, {
+      name
+      owner: Parse.User.current().getObjectId()}
+    pack.save null,
+      success: (savedPack) -> cb null, savedPack
+      error: parseHandleError cb
+
+postNewPublish = (pack, cb) ->
+  pub = new Publish
+  archive = new Parse.File "#{name}.tar.gz", {base64: tarGZBuffer}
+  parseSetVals pub, {
+    version, description, archive
+    package: parseMakePointer 'Package', pack.getObjectId()}
+  pub.save null,
+    success: (savedPub) ->
+      parseSetVals pack,
+        recent: parseMakePointer 'Publish', savedPub.getObjectId()
+      pack.save null,
+        success: (savedPack) -> cb null
+        err: parseHandleError cb
+    error: parseHandleError cb
+
+Package = Parse.Object.extend 'Package'
+Publish = Parse.Object.extend 'Publish'
+publish = ({name, version, description}, tarGZBuffer, cb) ->
+  async.waterfall [login
+    # get prev package if exists
+    (cb) ->
+      getPackageByName name, (err, pack) ->
+        cb null, (if err then {isNewPackage: yes} else pack)
+    makePackageCheckVersion
+    postNewPublish],
+    (err) ->
+      if err then return cb err
+      else cb null, S.packageSaved name, version
+
+register = (cb) ->
+  user = new Parse.User
+  prompt.get ['username', 'password'], (err, res) ->
+    parseSetVals user,
+      username: res.username
+      password: res.password
+    user.signUp null,
+      success: cb null, S.registerSuccessful res.username
+      error: parseHandleError cb
 
 module.exports = {
   search
   info
   install
+  publish
+  register
 }

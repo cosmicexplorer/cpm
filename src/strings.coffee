@@ -2,7 +2,9 @@ path = require 'path'
 
 packageFilename = 'package-cpm.json'
 modulesFolder = 'c_modules'
-validDepDevs = ['dep', 'dev']
+validDepDevs =
+  dep: 'dependencies'
+  dev: 'devDependencies'
 
 module.exports =
   shortLongOptionMap:
@@ -104,12 +106,23 @@ module.exports =
   packageCouldNotBeRemoved: (packName) -> "Package #{packName} could not be
   removed (access error?)."
 
-  validDepDevs: validDepDevs
+  validDepDevs: (k for k of validDepDevs)
   invalidDepDev: (str) -> "'#{str}' is not a valid dependency specifier. Please
-  specify one of '#{validDepDevs.join "', '"}'."
+  specify one of '#{@validDepDevs.join "', '"}'."
 
   successfulInstall: (dir, packName) -> "Successfully installed #{packName} at
   #{dir}."
   packageExists: (pack) -> "Package #{pack} already exists in the project."
   dependencyError: (pack, version) -> "Package #{pack} already exists at version
   #{version}."
+
+  usernamePrompt: "Username: "
+  passwordPrompt: "Password: "
+  mustBumpVersion: (pack, version, newVersion) -> "Package #{pack} was
+  previously at version #{version}, but you specified version #{newVersion}.
+  Please increase the version number."
+  packageSaved: (pack, version) -> "Package #{pack} at version #{version} saved
+  successfully."
+
+  registerSuccessful: (username) -> "Username #{username} registered
+  successfully."
