@@ -74,7 +74,7 @@ cpm will be covered by the GPL, version 3 or later. See [the license](GPL.md) fo
 # TODO
 
 - [x] write readme
-- [ ] decide how hosting is gonna work
+- [x] decide how hosting is gonna work
 - [ ] make basic client
 - [ ] add capability for separate registry servers, with authentication
 - [ ] bask in fame and glory
