@@ -150,9 +150,12 @@ extractTarToDir = (dir, packName, depField, parsed, packageJsonPath, packVer,
         return cb null, outDir, modulesFolder if err
         rimraf outDir, (err) -> cb err, outDir, modulesFolder
     (outDir, modulesFolder, cb) ->
+      console.log parsed
       tarGZStream.pipe zlib.createGunzip()
         .pipe(tar.extract outDir, {strict: no})
         .on('finish', ->
+          if not parsed[depField]?
+            parsed[depField] = {}
           parsed[depField][packName] = packVer
           str = JSON.stringify parsed, null, 2
           fs.writeFile packageJsonPath, str, (err) -> cb err, outDir)
@@ -271,7 +274,7 @@ remove = (basedir, packName, keys, opts, cb) ->
     (cb) -> getJsonDirPath basedir, (dir) ->
       if dir then cb null, dir else cb S.noPackageJsonFound
     (dir, cb) -> getPackageDir dir, packName, cb
-    (folder, cb) -> fs.rmdir folder, (err) -> if err
+    (folder, cb) -> rimraf folder, (err) -> if err
         cb S.packageCouldNotBeRemoved packName
       else cb null
     ], (err) -> cb err, S.removeSuccessful packName

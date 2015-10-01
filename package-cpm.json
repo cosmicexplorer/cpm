@@ -1,15 +1,4 @@
 {
-  "name": "hey",
-  "version": "0.0.0",
-  "include": [
-    "sr*",
-    "."
-  ],
-  "link": {
-    "bin": "spec/*.a"
-  },
-  "dynamic": "spec/libtest.so",
-  "bin": "**/*.exe",
   "dependencies": {
     "mine": "0.0.0"
   }
