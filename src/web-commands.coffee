@@ -64,9 +64,10 @@ search = optionalOptionsMacro (reg, {noColor = null} = {}, cb) ->
 
 formatInfo = (pack, {noColor = null} = {}) ->
   {name, version, description} = getPackDesc pack
-  (colorize ["name: #{name}"
+  res = ["name: #{name}"
     "version: #{version}"
-    "description: #{description}"]).join '\n'
+    "description: #{description}"]
+  (if noColor then res else colorize res).join '\n'
 
 getPackageByName = (name, cb) ->
   query = new Parse.Query 'Package'
@@ -85,16 +86,38 @@ info = optionalOptionsMacro (name, opts, cb) ->
     return cb err if err
     cb null, formatInfo pack, opts
 
+NUM_TO_TAKE_VERSIONS = 500
+getSpecVersionOfPackage = (pack, version_spec, cb, skip = 0) ->
+  query = new Parse.Query 'Publish'
+  query.descending 'version'
+  query.equalTo 'package', parseMakePointer 'Package', pack.id
+  query.limit NUM_TO_TAKE_VERSIONS
+  query.skip skip if skip
+  query.find
+    success: (pubs) ->
+      switch pubs.length
+        when 0 then cb S.noVersionMatchingSpec (pack.get 'name'), version_spec
+        else
+          res = pubs.filter (pub) ->
+            utils.compareVersionStrings (pub.get 'version'), version_spec
+          switch res.length
+            when 0 then getSpecVersionOfPackage pack, version_spec, cb,
+              skip + NUM_TO_TAKE_VERSIONS
+            else cb null, res[0]
+    error: parseHandleError cb
+
 getFileFromPackage = (pack, cb) ->
   publish = pack.get 'recent'
   http.get(publish.get('archive').url(), (resp) ->
     cb null, publish.get('version'), resp).on 'error', cb
 
-# TODO: make this respect versions
-install = (name, cb) ->
+install = (name, version_spec, cb) ->
   getPackageByName name, (err, pack) ->
     return cb err if err
-    getFileFromPackage pack, cb
+    getSpecVersionOfPackage pack, version_spec, (err, pub) ->
+      return cb err if err
+      http.get((pub.get 'archive').url(), (resp) ->
+        cb null, (pub.get 'version'), resp).on 'error', cb
 
 promptSchemaBase = (verifyPass = no) ->
   res = [{name: 'username'}

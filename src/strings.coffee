@@ -100,8 +100,11 @@ module.exports =
   current directory."
 
   noSuchPackageRegex: (reg) -> "No packages found matching regex '#{reg}.'"
-  noSuchPackage: (str) -> "No packages found with name '#{str}.'"
+  noSuchPackage: (str) -> "No packages found with name '#{str}'."
   internalError: (err) -> "Internal error: #{err}."
+
+  noVersionMatchingSpec: (pack, spec) -> "No versions of package '#{pack}' could
+  be found matching version_spec '#{spec}'."
 
   packageCouldNotBeRemoved: (packName) -> "Package #{packName} could not be
   removed (access error?)."
@@ -114,8 +117,8 @@ module.exports =
   invalidDepDev: (str) -> "'#{str}' is not a valid dependency specifier. Please
   specify one of '#{@validDepDevs.join "', or '"}'."
 
-  successfulInstall: (dir, packName) -> "Successfully installed #{packName} at
-  #{dir}."
+  successfulInstall: (dir, packName, ver) -> "Successfully installed
+  '#{packName}' version #{ver} at #{dir}."
   packageExists: (pack) -> "Package #{pack} already exists in the project."
   dependencyError: (pack, version, spec) -> "Package #{pack} already exists at
   version #{version}, which already satisfies the version spec #{spec}."
@@ -131,3 +134,6 @@ module.exports =
   passwordVerificationFailure: "Passwords did not match."
 
   userAbort: "User aborted the program."
+
+  invalidVersion: (path, ver) -> "Version '#{ver}' specified in #{path} is
+  invalid."

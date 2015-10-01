@@ -21,6 +21,7 @@ module.exports =
       for i in [0..(VERSION_STRING_LENGTH - 1)] by 1
         return [i, spec[i].replace /[0-9]/g, ""] unless spec[i].match numsOnly
       [null, null]
+    return yes if (not (ind and comparison)) and version is version_spec
     try do ->
       flag = no
       for i in [ind..(VERSION_STRING_LENGTH - 1)] by 1
