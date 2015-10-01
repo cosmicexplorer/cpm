@@ -113,8 +113,8 @@ module.exports =
   successfulInstall: (dir, packName) -> "Successfully installed #{packName} at
   #{dir}."
   packageExists: (pack) -> "Package #{pack} already exists in the project."
-  dependencyError: (pack, version) -> "Package #{pack} already exists at version
-  #{version}."
+  dependencyError: (pack, version, spec) -> "Package #{pack} already exists at
+  version #{version}, which already satisfies the version spec #{spec}."
 
   usernamePrompt: "Username: "
   passwordPrompt: "Password: "

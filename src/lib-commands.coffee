@@ -16,25 +16,25 @@ VERSION_STRING_LENGTH = 3
 
 
 # auxiliary methods
-getPackageFilePath = (basedir, cb) ->
+getJsonPath = (basedir, cb) ->
   curFilePath = _getPackageFile basedir
   fs.stat curFilePath, (err, stat) ->
     if err
       parsed = path.parse path.resolve basedir
       if parsed.root is parsed.dir then cb null
-      else getPackageFilePath (path.join basedir, '..'), cb
+      else getJsonPath (path.join basedir, '..'), cb
     else cb path.relative process.cwd(), curFilePath
 
-getPackageDirPath = (basedir, cb) -> getPackageFilePath basedir, (file) ->
+getJsonDirPath = (basedir, cb) -> getJsonPath basedir, (file) ->
   cb (if not file then null else path.dirname file)
 
 getCurrentPackageText = (basedir, cb) ->
-  getPackageFilePath (packPath) ->
+  getJsonPath (packPath) ->
     return cb S.noPackageJsonFound unless packPath
     fs.readFile path, (err, res) -> cb err, res.toString()
 
 getJsonTextOfPackage = (basedir, packName, cb) ->
-  getPackageDirPath basedir, (dir) ->
+  getJsonDirPath basedir, (dir) ->
     packPath = path.join dir, S.modulesFolder, packName, S.packageFilename
     if not path then cb S.noPackageJsonFound()
     else fs.readFile packPath, (err, content) ->
@@ -46,6 +46,7 @@ getPackageContents = (basedir, packName, field, cb = ident, parse = ident) ->
   getJsonTextOfPackage basedir, packName, (err, contents, packPath) ->
     if err then cb err else cb null, (try
         parse (JSON.parse contents)[field], packPath
+      catch err then err.message)
 
 isStringOrArray = (o) -> (typeof o is 'string') or (o instanceof Array)
 isObject = (o) -> (not isStringOrArray o) and o instanceof Object
@@ -114,11 +115,11 @@ getFilesFromPackageJsonMacro = (title, fun) -> (args..., opts, cb) ->
   getFilesFromField title, args..., opts, (err, files) ->
     if err then cb err else cb null, fun files
 
-ifNotExistThrow = (basedir, pack, cb) ->
+getPackageDir = (basedir, pack, cb) ->
   finalPathFolder = path.join basedir, S.modulesFolder, pack
   fs.stat finalPathFolder, (err) ->
     if err then cb S.packageNotFound basedir, pack
-    else cb finalPathFolder
+    else cb null, finalPathFolder
 
 numRegexMatch = (num) -> num.match /^[0-9]+/g
 doComparison = (num, specNum, comparison, version_spec) ->
@@ -186,7 +187,7 @@ info = (basedir, name, posArgs, opts, cb) ->
 # project management commands
 bootstrap = (basedir, packName, keys, opts, cb) ->
   newProjectName = (path.resolve basedir).replace /.*\//g, ""
-  getPackageDirPath basedir, (dir) ->
+  getJsonDirPath basedir, (dir) ->
     if dir
       console.log arguments
       cb S.packageJsonAlreadyExists path.resolve dir
@@ -196,44 +197,65 @@ bootstrap = (basedir, packName, keys, opts, cb) ->
           if err then cb err.message
           else cb null, S.successfulBootstrap newProjectName
 
+extractTarToDir = (packVer, tarGZStream, cb) ->
+
+
 # TODO: assume latest if version_spec not given
+# TODO: install all from package.json if no depDev, packName given
 install = (basedir, depDev, [packName, version_spec], opts, cb) ->
+  dir = null
+  packageJsonPath = null
+  parsed = null
   if S.validDepDevs[depDev] then cb S.invalidDepDev depDev
-  else getPackageDirPath basedir, (dir) ->
-    return cb S.noPackageJsonFound unless dir
-    myPackageJson = path.join dir, S.packageFilename
-    fs.readFile myPackageJson, (err, contents) ->
-      return cb err if err
-      parsed = JSON.parse contents
-      depField = S.validDepDevs[depDev]
-      parsed[depField] = {} unless parsed[depField]
-      version = parsed[depField][packName]
-      if not compareVersionStrings version, version_spec
-        cb S.dependencyError packName, version
+  else async.waterfall [
+    # get json dir
+    (cb) -> getJsonDirPath basedir, (dirFound) ->
+      if not dirFound then cb S.noPackageJsonFound
       else
-        webCommands.install packName, (err, packVer, tarGZStream) ->
-          return cb err if err
-          outDir = path.join dir, S.modulesFolder, packName
-          tarGZStream.pipe(zlib.createGunzip())
-            # n.b.: the archive must not have a folder at top level! should
-            # extract the root of the repo directly wherever it's extracted to
-            .pipe(tar.extract outDir, {strict: no}).on 'finish', ->
-              parsed[depField][packName] = packVer
-              str = JSON.stringify parsed, null, 2
-              fs.writeFile myPackageJson, str, (err) ->
-                if err then cb err.message
-                else cb null, S.successfulInstall outDir, packName
+        dir = dirFound
+        cb null
+    # read package file
+    (cb) ->
+      packageJsonPath = path.join dir, S.packageFilename
+      fs.readFile packageJsonPath, (err, contents) ->
+        return cb err if err
+        parsed = JSON.parse contents
+        cb null
+    # get old version
+    (cb) ->
+      depField = S.validDepDevs[depDev]
+      return cb S.invalidDepDev depDev unless depField
+      parsed[depField] = {} unless parsed[depField]
+      prevVersion = parsed[depField][packName]
+      if compareVersionStrings version, version_spec
+        cb S.dependencyError packName, prevVersion, version_spec
+      else cb null
+    # install from web
+    (cb) -> webCommands.install packName cb
+    (packVer, tarGZStream, cb) ->
+      outDir = path.join dir, S.modulesFolder, packName
+      tarGZStream.pipe zlib.createGunzip()
+        .pipe(tar.extract outDir, {strict: no}).on('finish', ->
+          parsed[depField][packName] = packVer
+          str = JSON.stringify parsed, null, 2
+          fs.writeFile packageJsonPath, str, (err) ->
+            cb err, outDir).on 'error', cb],
+    (err, outDir) -> cb err, S.successfulInstall outDir, packName
 
 remove = (basedir, packName, keys, opts, cb) ->
-  getPackageDirPath basedir, (dir) ->
-    return cb S.noPackageJsonFound unless dir
-    ifNotExistThrow dir, packName, (folder) ->
-      fs.rmdir folder, (err) -> cb S.packageCouldNotBeRemoved packName
+  async.waterfall [
+    (cb) -> getJsonDirPath basedir, (dir) ->
+      if dir then cb null, dir else cb S.noPackageJsonFound
+    (dir, cb) -> getPackageDir dir, packName, cb
+    (folder, cb) -> fs.rmdir folder, (err) -> if err
+        cb S.packageCouldNotBeRemoved packName
+      else cb null
+    ], (err) -> cb err
 
 publish = (basedir, packName, keys, opts, cb) ->
   async.waterfall [
     # get package dir
-    (cb) -> getPackageDirPath basedir, (dir) ->
+    (cb) -> getJsonDirPath basedir, (dir) ->
       if dir then cb null, dir else cb S.noPackageJsonFound
     # get package-cpm.json contents
     (dir, cb) -> fs.readFile (path.join dir, S.packageFilename), (err, res) ->

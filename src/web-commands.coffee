@@ -87,6 +87,7 @@ getFileFromPackage = (pack, cb) ->
   http.get(publish.get('archive').url(), (resp) ->
     cb null, publish.get('version'), resp).on 'error', cb
 
+# TODO: make this respect versions
 install = (name, cb) ->
   getPackageByName name, (err, pack) ->
     return cb err if err
