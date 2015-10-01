@@ -8,7 +8,7 @@ prompt = require 'prompt'
 
 S = require './strings'
 colorize = require './colorize'
-libCmd = require './lib-commands'
+utils = require './utils'
 
 SearchLimit = 50
 
@@ -97,22 +97,22 @@ login = (cb) ->
   prompt.start()
   prompt.get ['username', 'password'], (err, res) ->
     Parse.User.logIn res.username, res.password,
-      success: (user) -> cb null
+      success: (user) -> cb null, user
       error: parseHandleError cb
 
-makePackageCheckVersion = (pack, name, version, cb) ->
+makePackageCheckVersion = (user, pack, name, version, cb) ->
   if not pack.isNewPackage
     recent = pack.get 'recent'
     # if version is not greater than the most recent version
     recentVersion = recent.get 'version'
-    if not libCmd.compareVersionStrings version, ('>=' + recentVersion)
-      cb S.mustBumpVersion name, version, recentVersion
+    if not utils.compareVersionStrings version, ('>' + recentVersion)
+      cb S.mustBumpVersion name, recentVersion, version
     else cb null, pack
   else
     pack = new Package
     parseSetVals pack, {
       name
-      owner: Parse.User.current().getObjectId()}
+      Owner: parseMakePointer 'User', user.id}
     pack.save null,
       success: (savedPack) -> cb null, savedPack
       error: parseHandleError cb
@@ -122,24 +122,27 @@ postNewPublish = (pack, name, version, description, tarGZBuffer, cb) ->
   archive = new Parse.File "#{name}.tar.gz", {base64: tarGZBuffer}
   parseSetVals pub, {
     version, description, archive
-    package: parseMakePointer 'Package', pack.getObjectId()}
+    package: parseMakePointer 'Package', pack.id}
   pub.save null,
+    error: parseHandleError cb
     success: (savedPub) ->
       parseSetVals pack,
-        recent: parseMakePointer 'Publish', savedPub.getObjectId()
+        recent: parseMakePointer 'Publish', savedPub.id
       pack.save null,
         success: (savedPack) -> cb null
-        err: parseHandleError cb
-    error: parseHandleError cb
+        error: parseHandleError cb
 
 Package = Parse.Object.extend 'Package'
 Publish = Parse.Object.extend 'Publish'
 publish = ({name, version, description}, tarGZBuffer, cb) ->
+  user = null
   async.waterfall [login
     # get prev package if exists
-    (cb) -> getPackageByName name, (err, pack) ->
-      cb null, (if err then {isNewPackage: yes} else pack)
-    (pack, cb) -> makePackageCheckVersion pack, name, version, cb
+    (userLoggedIn, cb) ->
+      user = userLoggedIn
+      getPackageByName name, (err, pack) ->
+        cb null, (if err then {isNewPackage: yes} else pack)
+    (pack, cb) -> makePackageCheckVersion user, pack, name, version, cb
     (pack, cb) ->
       postNewPublish pack, name, version, description, tarGZBuffer, cb],
     (err) ->

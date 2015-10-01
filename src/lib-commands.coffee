@@ -12,16 +12,10 @@ rimraf = require 'rimraf'
 
 S = require "./strings"
 webCommands = require './web-commands'
-
-VERSION_STRING_LENGTH = 3
+utils = require './utils'
 
 
 # auxiliary methods
-
-# preserve first argument of function for async calls with error arg
-curryAsync = (fn, beginArgs...) -> (args...) ->
-  fn args[0], beginArgs..., args[1..]...
-
 getJsonPath = (basedir, cb) ->
   curFilePath = path.join basedir, S.packageFilename
   fs.stat curFilePath, (err, stat) ->
@@ -135,15 +129,6 @@ getPackageDir = (packageJsonDir, pack, cb) ->
     if err then cb S.packageNotFound packageJsonDir, pack
     else cb null, finalPathFolder
 
-numRegexMatch = (num) -> num.match /^[0-9]+/g
-doComparison = (num, specNum, comparison, version_spec) ->
-  switch comparison
-    when '<=' then specNum >= num
-    when '>=' then specNum <= num
-    when '<' then specNum > num
-    when '>' then specNum < num
-    else throw new Error "invalid version string #{version_spec}"
-
 ensureModulesFolderBuilt = (basedir, cb) ->
   modulesFolder = path.join basedir, S.modulesFolder
   fs.stat modulesFolder, (err) ->
@@ -180,24 +165,6 @@ extractTarToDir = (dir, packName, depField, packVer, tarGZStream, cb) ->
 ### exposed API ###
 # utility methods
 hyphenToCamel = (str) -> str.replace /\-(.)/g, (total, g1) -> g1.toUpperCase()
-
-compareVersionStrings = (version, version_spec) ->
-  return no unless (version_spec and version)
-  nums = version.split '.'
-  specNums = version_spec.split '.'
-  comparison = null
-  try for i in [0..(VERSION_STRING_LENGTH - 1)]
-    if comparison
-      return no unless numRegexMatch specNums[i]
-    else if not numRegexMatch specNums[i]
-      nonNumeric = specNums[i].replace /[0-9]/g, ""
-      numeric = specNums[i].replace /[^0-9]/g, ""
-      if not doComparison nums[i], numeric, nonNumeric, version_spec
-        return no
-      comparison = nonNumeric
-    else return no if nums[i] isnt specNums[i]
-  catch then return no
-  yes
 
 
 # build system commands
@@ -267,7 +234,7 @@ install = (basedir, depDev, [packName, version_spec], opts, cb) ->
       return cb null unless parsed
       return cb S.invalidDepDev depDev unless depField
       prevVersion = parsed[depField]?[packName]
-      if compareVersionStrings prevVersion, version_spec
+      if utils.compareVersionStrings prevVersion, version_spec
         cb S.dependencyError packName, prevVersion, version_spec
       else cb null
     (cb) ->
@@ -282,7 +249,7 @@ remove = (basedir, packName, keys, opts, cb) ->
     (cb) -> getJsonDirPath basedir, (dir) ->
       if dir then cb null, dir else cb S.noPackageJsonFound
     # get location of package's folder
-    (dir, cb) -> getPackageDir dir, packName, curryAsync cb, dir
+    (dir, cb) -> getPackageDir dir, packName, utils.curryAsync dir, cb
     # remove package's folder
     (dir, folder, cb) ->
       rimraf folder, (err) -> if err
@@ -291,7 +258,7 @@ remove = (basedir, packName, keys, opts, cb) ->
     # get project json
     (dir, cb) ->
       packJsonPath = path.join dir, S.packageFilename
-      fs.readFile packJsonPath, curryAsync cb, packJsonPath
+      fs.readFile packJsonPath, utils.curryAsync packJsonPath, cb
     # read content and update (devD|d)ependencies
     (packJsonPath, contents, cb) ->
       parsed = JSON.parse contents
@@ -322,7 +289,6 @@ publish = (basedir, packName, keys, opts, cb) ->
 register = (basedir, packName, keys, opts, cb) -> webCommands.register cb
 
 module.exports = {
-  compareVersionStrings
   hyphenToCamel
   commands: {
     include
