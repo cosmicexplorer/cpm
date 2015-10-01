@@ -2,7 +2,7 @@ fs = require 'fs'
 path = require 'path'
 
 S = require "#{__dirname}/src/strings"
-libCmd = require "#{__dirname}/src/lib-command"
+libCmd = require "#{__dirname}/src/lib-commands"
 
 argv = require('minimist')(process.argv[2..])
 

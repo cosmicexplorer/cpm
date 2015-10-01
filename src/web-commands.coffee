@@ -8,7 +8,7 @@ prompt = require 'prompt'
 
 S = require './strings'
 colorize = require './colorize'
-libCmd = require './lib-command'
+libCmd = require './lib-commands'
 
 SearchLimit = 50
 
