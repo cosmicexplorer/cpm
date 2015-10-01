@@ -120,8 +120,6 @@ module.exports =
   dependencyError: (pack, version, spec) -> "Package #{pack} already exists at
   version #{version}, which already satisfies the version spec #{spec}."
 
-  usernamePrompt: "Username: "
-  passwordPrompt: "Password: "
   mustBumpVersion: (pack, version, newVersion) -> "Package #{pack} was
   previously at version #{version}, but you specified version #{newVersion}.
   Please increase the version number."
@@ -130,3 +128,6 @@ module.exports =
 
   registerSuccessful: (username) -> "Username #{username} registered
   successfully."
+  passwordVerificationFailure: "Passwords did not match."
+
+  userAbort: "User aborted the program."

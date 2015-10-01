@@ -2,9 +2,12 @@ fs = require 'fs'
 http = require 'http'
 
 async = require 'async'
-prompt = require 'prompt'
 {Parse} = require 'parse/node'
 {app_id, js_key} = JSON.parse fs.readFileSync "#{__dirname}/../parse-info.json"
+
+prompt = require 'prompt'
+prompt.message = ''
+prompt.delimiter = ''
 
 S = require './strings'
 colorize = require './colorize'
@@ -93,9 +96,26 @@ install = (name, cb) ->
     return cb err if err
     getFileFromPackage pack, cb
 
+promptSchemaBase = (verifyPass = no) ->
+  res = [{name: 'username'}
+    {name: 'password', hidden: yes}]
+  if not verifyPass then res
+  else
+    res.push
+      name: 'password (verify)'
+      hidden: yes
+    res
+
+promptSchema = ({verifyPass} = {}) ->
+  for el in promptSchemaBase verifyPass
+    el.required = yes
+    el.message = el.name + ":"
+    el
+
 login = (cb) ->
   prompt.start()
-  prompt.get ['username', 'password'], (err, res) ->
+  prompt.get promptSchema(), (err, res) ->
+    return cb err if err
     Parse.User.logIn res.username, res.password,
       success: (user) -> cb null, user
       error: parseHandleError cb
@@ -151,13 +171,18 @@ publish = ({name, version, description}, tarGZBuffer, cb) ->
 
 register = (cb) ->
   user = new Parse.User
-  prompt.get ['username', 'password'], (err, res) ->
-    parseSetVals user,
-      username: res.username
-      password: res.password
-    user.signUp null,
-      success: cb null, S.registerSuccessful res.username
-      error: parseHandleError cb
+  prompt.start()
+  prompt.get (promptSchema {verifyPass: yes}), (err, res) ->
+    return cb err.message if err
+    if res.password isnt res['password (verify)']
+      cb S.passwordVerificationFailure
+    else
+      parseSetVals user,
+        username: res.username
+        password: res.password
+      user.signUp null,
+        success: cb null, S.registerSuccessful res.username
+        error: parseHandleError cb
 
 module.exports = {
   search
