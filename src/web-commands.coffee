@@ -99,7 +99,7 @@ login = (cb) ->
       success: (user) -> cb null
       error: parseHandleError cb
 
-makePackageCheckVersion = (pack, cb) ->
+makePackageCheckVersion = (pack, name, version, cb) ->
   if not pack.isNewPackage
     getPackageByName name, (err, cb) ->
       recent = pack.get 'recent'
@@ -117,7 +117,7 @@ makePackageCheckVersion = (pack, cb) ->
       success: (savedPack) -> cb null, savedPack
       error: parseHandleError cb
 
-postNewPublish = (pack, cb) ->
+postNewPublish = (pack, name, version, description, tarGZBuffer, cb) ->
   pub = new Publish
   archive = new Parse.File "#{name}.tar.gz", {base64: tarGZBuffer}
   parseSetVals pub, {
@@ -140,8 +140,9 @@ publish = ({name, version, description}, tarGZBuffer, cb) ->
     (cb) ->
       getPackageByName name, (err, pack) ->
         cb null, (if err then {isNewPackage: yes} else pack)
-    makePackageCheckVersion
-    postNewPublish],
+    (pack, cb) -> makePackageCheckVersion pack, name, version, cb
+    (pack, cb) ->
+      postNewPublish pack, name, version, description, tarGZBuffer, cb],
     (err) ->
       if err then return cb err
       else cb null, S.packageSaved name, version

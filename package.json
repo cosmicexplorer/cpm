@@ -11,7 +11,9 @@
   "bin": "cmd",
   "dependencies": {
     "async": "^1.4.2",
+    "base64-stream": "^0.1.2",
     "colors": "^1.1.2",
+    "dump-stream": "0.0.9",
     "glob": "^5.0.15",
     "lodash": "^3.10.1",
     "minimist": "^1.2.0",

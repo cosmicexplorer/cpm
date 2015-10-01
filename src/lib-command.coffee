@@ -6,6 +6,8 @@ async = require 'async'
 lo = require 'lodash'
 glob = require 'glob'
 tar = require 'tar-fs'
+base64 = require 'base64-stream'
+DumpStream = require 'dump-stream'
 
 S = require "./strings"
 webCommands = require './web-commands'
@@ -27,6 +29,11 @@ _getPackageFilePath = (basedir, cb) ->
 
 _getPackageDirPath = (basedir, cb) -> _getPackageFilePath basedir, (file) ->
   cb (if not file then null else path.dirname file)
+
+_getCurrentPackageText = (basedir, cb) ->
+  _getPackageFilePath (packPath) ->
+    return cb S.noPackageJsonFound unless packPath
+    fs.readFile path, (err, res) -> cb err, res.toString()
 
 _getJsonTextOfPackage = (basedir, packName, cb) ->
   _getPackageDirPath basedir, (dir) ->
@@ -227,10 +234,32 @@ remove = (basedir, packName, keys, opts, cb) ->
     ifNotExistThrow dir, packName, (folder) ->
       fs.rmdir folder, (err) -> cb S.packageCouldNotBeRemoved packName
 
+publish = (basedir, packName, keys, opts, cb) ->
+  async.waterfall [
+    # get package dir
+    (cb) ->
+      _getPackageDirPath basedir, (dir) ->
+        if dir then cb null, dir else cb S.noPackageJsonFound
+    # get package-cpm.json contents
+    (dir, cb) ->
+      fs.readFile (path.join dir, S.packageFilename), (err, res) ->
+        cb err, dir, JSON.parse res
+    # make tar.gz of current package's contents
+    (dir, pkgJson, cb) ->
+      tarGZStream = (tar.pack dir).pipe(zlib.createGzip()).pipe(base64.encode())
+      s = new DumpStream
+      tarGZStream.pipe(s).on 'finish', -> cb null, pkgJson, s.dump()
+    # upload
+    webCommands.publish],
+    cb
+
+register = (basedir, packName, keys, opts, cb) -> webCommands.register cb
+
 module.exports = {
   _getPackageFile
   _getPackageFilePath
   _getPackageDirPath
+  _getCurrentPackageText
   _getJsonTextOfPackage
   _getPackageContents
   _isStringOrArray
@@ -253,5 +282,7 @@ module.exports = {
     info
     install
     remove
+    publish
+    register
   }
 }
