@@ -16,27 +16,25 @@ VERSION_STRING_LENGTH = 3
 
 
 # auxiliary methods
-_getPackageFile = (basedir) -> path.join basedir, S.packageFilename
-
-_getPackageFilePath = (basedir, cb) ->
+getPackageFilePath = (basedir, cb) ->
   curFilePath = _getPackageFile basedir
   fs.stat curFilePath, (err, stat) ->
     if err
       parsed = path.parse path.resolve basedir
       if parsed.root is parsed.dir then cb null
-      else _getPackageFilePath (path.join basedir, '..'), cb
+      else getPackageFilePath (path.join basedir, '..'), cb
     else cb path.relative process.cwd(), curFilePath
 
-_getPackageDirPath = (basedir, cb) -> _getPackageFilePath basedir, (file) ->
+getPackageDirPath = (basedir, cb) -> getPackageFilePath basedir, (file) ->
   cb (if not file then null else path.dirname file)
 
-_getCurrentPackageText = (basedir, cb) ->
-  _getPackageFilePath (packPath) ->
+getCurrentPackageText = (basedir, cb) ->
+  getPackageFilePath (packPath) ->
     return cb S.noPackageJsonFound unless packPath
     fs.readFile path, (err, res) -> cb err, res.toString()
 
-_getJsonTextOfPackage = (basedir, packName, cb) ->
-  _getPackageDirPath basedir, (dir) ->
+getJsonTextOfPackage = (basedir, packName, cb) ->
+  getPackageDirPath basedir, (dir) ->
     packPath = path.join dir, S.modulesFolder, packName, S.packageFilename
     if not path then cb S.noPackageJsonFound()
     else fs.readFile packPath, (err, content) ->
@@ -44,19 +42,18 @@ _getJsonTextOfPackage = (basedir, packName, cb) ->
       else cb null, content.toString(), packPath
 
 ident = (x) -> x
-_getPackageContents = (basedir, packName, field, cb = ident, parse = ident) ->
-  _getJsonTextOfPackage basedir, packName, (err, contents, packPath) ->
+getPackageContents = (basedir, packName, field, cb = ident, parse = ident) ->
+  getJsonTextOfPackage basedir, packName, (err, contents, packPath) ->
     if err then cb err else cb null, (try
         parse (JSON.parse contents)[field], packPath
-      catch err then err.message)
 
-_isStringOrArray = (o) -> (typeof o is 'string') or (o instanceof Array)
-_isObject = (o) -> (not _isStringOrArray o) and o instanceof Object
+isStringOrArray = (o) -> (typeof o is 'string') or (o instanceof Array)
+isObject = (o) -> (not isStringOrArray o) and o instanceof Object
 
 # expand wildcards and arrays
-_expandFileSelector = (basedir, sel, cb) ->
+expandFileSelector = (basedir, sel, cb) ->
   if sel instanceof Array
-    async.map sel, ((selector, f) -> _expandFileSelector basedir, selector, f),
+    async.map sel, ((selector, f) -> expandFileSelector basedir, selector, f),
       (err, files) -> if err then cb err else cb null, lo.uniq lo.flatten files
   else if typeof sel is 'string' then glob sel, {cwd: basedir}, (err, files) ->
     if err then cb err else cb null, files.map (f) -> path.join basedir, f
@@ -65,20 +62,19 @@ _expandFileSelector = (basedir, sel, cb) ->
 statsAndFolder = (f, cb) -> fs.stat f, (err, res) ->
   if err then cb err
   else cb null, if res.isDirectory() then f else path.dirname f
-_getFoldersFromFiles = (files, cb) ->
+getFoldersFromFiles = (files, cb) ->
   async.map files, statsAndFolder, (err, folders) ->
     if err then cb err else cb null, lo.uniq folders.filter (f) -> f?
 
-keysGiven = (keysObj) -> keysObj and keysObj.length > 0
 
 getSelectors = (fieldObj, opts, keys, field, packFile) ->
-  if _isObject fieldObj
+  if isObject fieldObj
     if opts.allTargets then (v for k, v of fieldObj)
     else if not keysGiven keys then throw S.noKeysForTarget field, packFile
     else for key in keys
       if key of fieldObj then fieldObj[key]
       else throw S.keyNotFound field, packFile, key
-  else if _isStringOrArray fieldObj
+  else if isStringOrArray fieldObj
     if keysGiven keys then throw S.keyGivenForNoReason field, packFile, keys
     else [fieldObj]
   else throw S.invalidFieldType packFile, field
@@ -86,19 +82,19 @@ getSelectors = (fieldObj, opts, keys, field, packFile) ->
 flattenSelections = (opts, cb) -> (err, sels) ->
   cmds = (lo.flatten sels).map (f) -> path.relative process.cwd(), f
   if err then cb err
-  else if opts?.folders then _getFoldersFromFiles cmds, cb
+  else if opts?.folders then getFoldersFromFiles cmds, cb
   else cb err, lo.uniq cmds
 
 getAllFilesFromSelection = (folder, opts) -> (sel, cb) ->
-  _expandFileSelector folder, sel, cb
+  expandFileSelector folder, sel, cb
 
 # generic file-expanding function all the exposed functions which read file
 # wildcards depend on
-_getFilesFromField = (field, basedir, packageName, keys, opts, cb) ->
+getFilesFromField = (field, basedir, packageName, keys, opts, cb) ->
   if typeof opts is 'function'
     cb = opts
     opts = null
-  _getPackageContents basedir, packageName, field, null, (contents, packPath) ->
+  getPackageContents basedir, packageName, field, null, (contents, packPath) ->
     try
       selectors = getSelectors contents, opts, keys, field, packPath
       folder = path.dirname packPath
@@ -115,7 +111,7 @@ usesFoldersMacro = (fun) -> (args..., opts, cb) ->
   fun args..., opts, cb
 
 getFilesFromPackageJsonMacro = (title, fun) -> (args..., opts, cb) ->
-  _getFilesFromField title, args..., opts, (err, files) ->
+  getFilesFromField title, args..., opts, (err, files) ->
     if err then cb err else cb null, fun files
 
 ifNotExistThrow = (basedir, pack, cb) ->
@@ -176,7 +172,7 @@ bin = getFilesFromPackageJsonMacro 'bin', (files) -> files.join ' '
 version = (basedir, packName, keys, opts, cb) ->
   field = 'version'
   cb S.keyGivenNotSupported field, keys if keysGiven keys
-  _getPackageContents basedir, packName, field, cb
+  getPackageContents basedir, packName, field, cb
 
 
 # wrappers for web commands
@@ -190,7 +186,7 @@ info = (basedir, name, posArgs, opts, cb) ->
 # project management commands
 bootstrap = (basedir, packName, keys, opts, cb) ->
   newProjectName = (path.resolve basedir).replace /.*\//g, ""
-  _getPackageDirPath basedir, (dir) ->
+  getPackageDirPath basedir, (dir) ->
     if dir
       console.log arguments
       cb S.packageJsonAlreadyExists path.resolve dir
@@ -203,7 +199,7 @@ bootstrap = (basedir, packName, keys, opts, cb) ->
 # TODO: assume latest if version_spec not given
 install = (basedir, depDev, [packName, version_spec], opts, cb) ->
   if S.validDepDevs[depDev] then cb S.invalidDepDev depDev
-  else _getPackageDirPath basedir, (dir) ->
+  else getPackageDirPath basedir, (dir) ->
     return cb S.noPackageJsonFound unless dir
     myPackageJson = path.join dir, S.packageFilename
     fs.readFile myPackageJson, (err, contents) ->
@@ -229,7 +225,7 @@ install = (basedir, depDev, [packName, version_spec], opts, cb) ->
                 else cb null, S.successfulInstall outDir, packName
 
 remove = (basedir, packName, keys, opts, cb) ->
-  _getPackageDirPath basedir, (dir) ->
+  getPackageDirPath basedir, (dir) ->
     return cb S.noPackageJsonFound unless dir
     ifNotExistThrow dir, packName, (folder) ->
       fs.rmdir folder, (err) -> cb S.packageCouldNotBeRemoved packName
@@ -237,7 +233,7 @@ remove = (basedir, packName, keys, opts, cb) ->
 publish = (basedir, packName, keys, opts, cb) ->
   async.waterfall [
     # get package dir
-    (cb) -> _getPackageDirPath basedir, (dir) ->
+    (cb) -> getPackageDirPath basedir, (dir) ->
       if dir then cb null, dir else cb S.noPackageJsonFound
     # get package-cpm.json contents
     (dir, cb) -> fs.readFile (path.join dir, S.packageFilename), (err, res) ->
@@ -254,18 +250,6 @@ publish = (basedir, packName, keys, opts, cb) ->
 register = (basedir, packName, keys, opts, cb) -> webCommands.register cb
 
 module.exports = {
-  _getPackageFile
-  _getPackageFilePath
-  _getPackageDirPath
-  _getCurrentPackageText
-  _getJsonTextOfPackage
-  _getPackageContents
-  _isStringOrArray
-  _isObject
-  _expandFileSelector
-  _getFoldersFromFiles
-  _getFilesFromField
-  # exposed API
   compareVersionStrings
   hyphenToCamel
   commands: {
