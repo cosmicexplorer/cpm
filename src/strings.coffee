@@ -78,7 +78,7 @@ module.exports =
   an associative array, but no keys were specified."
 
   keyGivenForNoReason: (target, jsonPath, keys) -> "Field '#{target}' of
-  #{jsonPath} is not an associative array, but keys '#{keys.join "', '"}' were
+  #{jsonPath} is not an associative array, but key(s) '#{keys.join "', '"}' were
   specified."
 
   keyGivenNotSupported: (target, keys) -> "Field '#{target}' does not
@@ -108,9 +108,9 @@ module.exports =
   removeSuccessful: (packName) -> "Package #{packName} was removed successfully
   removed."
 
-  validDepDevs: (k for k of validDepDevs)
+  validDepDevs: validDepDevs
   invalidDepDev: (str) -> "'#{str}' is not a valid dependency specifier. Please
-  specify one of '#{@validDepDevs.join "', '"}'."
+  specify one of '#{@validDepDevs.join "', or '"}'."
 
   successfulInstall: (dir, packName) -> "Successfully installed #{packName} at
   #{dir}."

@@ -80,11 +80,11 @@ getPackageByName = (name, cb) ->
 info = optionalOptionsMacro (name, opts, cb) ->
   getPackageByName name, (err, pack) ->
     return cb err if err
-    cb null, formatInfo packs[0], opts
+    cb null, formatInfo pack, opts
 
 getFileFromPackage = (pack, cb) ->
   publish = pack.get 'recent'
-  http.get(publish.get('archive').url(), (resp) ->
+  http.get(publish.get('archive').url(), (err, resp) ->
     cb null, publish.get('version'), resp).on 'error', cb
 
 # TODO: make this respect versions
@@ -102,13 +102,12 @@ login = (cb) ->
 
 makePackageCheckVersion = (pack, name, version, cb) ->
   if not pack.isNewPackage
-    getPackageByName name, (err, cb) ->
-      recent = pack.get 'recent'
-      # if version is not greater than the most recent version
-      recentVersion = recent.get 'version'
-      if not libCmd.compareVersionStrings version, ('>=' + recentVersion)
-        cb S.mustBumpVersion name, version, recentVersion
-      else cb null, pack
+    recent = pack.get 'recent'
+    # if version is not greater than the most recent version
+    recentVersion = recent.get 'version'
+    if not libCmd.compareVersionStrings version, ('>=' + recentVersion)
+      cb S.mustBumpVersion name, version, recentVersion
+    else cb null, pack
   else
     pack = new Package
     parseSetVals pack, {
