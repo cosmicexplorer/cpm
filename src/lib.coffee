@@ -9,10 +9,18 @@ tar = require 'tar-fs'
 base64 = require 'base64-stream'
 DumpStream = require 'dump-stream'
 rimraf = require 'rimraf'
+Ignore = require 'fstream-ignore'
 
 S = require "./strings"
 webCommands = require './web-commands'
 utils = require './utils'
+
+# files that we shall use to exclude others
+excludeFiles = ['.gitignore', '.cpmignore']
+# regexes that we shall use (on the file's ABSOLUTE path) to exclude files
+excludeRegexen = [
+  /(^|\/)\.git(\/|$)/g               # exclude the git folder
+  ]
 
 
 # auxiliary methods
@@ -161,6 +169,19 @@ extractTarToDir = (dir, packName, depField, packVer, tarGZStream, cb) ->
       fs.writeFile jsonPath, str, (err) -> cb err, outDir, packVer],
     cb
 
+specificallyExcluded = (dir, file) ->
+  abs = path.resolve dir, file
+  (file.match reg for reg in excludeRegexen).reduce ((a, b) -> a or b), null
+getAllFilesInRepo = (dir, cb) ->
+  res = []
+  Ignore({path: dir, ignoreFiles: excludeFiles})
+    .on('child', (c) -> if not specificallyExcluded dir, c.path
+      res.push path.relative dir, c.path)
+    .on('ignoreFile', (f) -> if not specificallyExcluded dir, f
+      res.push path.relative dir, f)
+    .on('error', (err) -> cb err)
+    .on 'close', -> cb null, res
+
 
 ### exposed API ###
 # utility methods
@@ -264,20 +285,30 @@ remove = (basedir, packName, keys, cb) ->
         if parsed[v]?
           delete parsed[v][packName]
           delete parsed[v] if Object.keys(parsed[v]).length is 0
-      fs.writeFile packJsonPath, (JSON.stringify parsed, null, 2), cb
-    ], (err) -> cb err, S.removeSuccessful packName
+      fs.writeFile packJsonPath, (JSON.stringify parsed, null, 2), cb],
+    (err) -> cb err, S.removeSuccessful packName
 
 publish = (basedir, cb) ->
+  dir = null
+  pkgJson = null
   async.waterfall [
     # get package dir
-    (cb) -> getJsonDirPath basedir, (dir) ->
-      if dir then cb null, dir else cb S.noPackageJsonFound
+    (cb) -> getJsonDirPath basedir, (directory) ->
+      if directory
+        dir = directory
+        cb null
+      else cb S.noPackageJsonFound
     # get package-cpm.json contents
-    (dir, cb) -> fs.readFile (path.join dir, S.packageFilename), (err, res) ->
-      cb err, dir, JSON.parse res
+    (cb) -> fs.readFile (path.join dir, S.packageFilename), cb
+    (res, cb) ->
+      pkgJson = JSON.parse res
+      cb null
     # make tar.gz of current package's contents
-    (dir, pkgJson, cb) ->
-      tarGZStream = (tar.pack dir).pipe(zlib.createGzip()).pipe(base64.encode())
+    (cb) -> getAllFilesInRepo dir, cb
+    (files, cb) ->
+      tarGZStream = (tar.pack dir, {entries: files})
+        .pipe(zlib.createGzip())
+        .pipe(base64.encode())
       s = new DumpStream
       tarGZStream.pipe(s).on 'finish', -> cb null, pkgJson, s.dump()
     # upload
