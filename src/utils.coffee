@@ -13,7 +13,8 @@ module.exports =
   # compares version_spec to a version string as specified in
   # ../docs/package-cpm.json-spec.md
   compareVersionStrings: (version, version_spec) ->
-    return no unless version_spec? and version?
+    return no unless version?
+    return yes unless version_spec?
     nums = version.split '.'
     spec = version_spec.split '.'
     return no unless nums.length is spec.length is VERSION_STRING_LENGTH

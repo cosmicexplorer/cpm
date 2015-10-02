@@ -9,8 +9,8 @@ search = (basedir, reg, keys, opts, cb) -> lib.commands.search reg, opts, cb
 
 info = (basedir, name, keys, opts, cb) -> lib.commands.info name, opts, cb
 
-install = (basedir, depDev, [packName, version_spec], opts, cb) ->
-  lib.commands.install basedir, depDev, packName, version_spec, cb
+install = (basedir, packName, [depDev, version_spec], opts, cb) ->
+  lib.commands.install basedir, packName, depDev, version_spec, cb
 
 remove = (basedir, packName, keys, opts, cb) ->
   lib.commands.remove basedir, packName, keys, cb

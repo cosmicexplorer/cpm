@@ -231,7 +231,7 @@ correctVersionRegex = /[0-9]+\.{2}[0-9]+/g
 
 # TODO: ignore .git and .gitignored files
 # TODO: install all from package.json if no depDev, packName given
-install = (basedir, depDev, packName, version_spec, cb) ->
+install = (basedir, packName, depDev, version_spec, cb) ->
   dir = null
   depField = S.validDepDevs[depDev]
   return cb S.invalidDepDev depDev unless depField

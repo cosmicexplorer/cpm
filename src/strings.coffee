@@ -103,8 +103,10 @@ module.exports =
   noSuchPackage: (str) -> "No packages found with name '#{str}'."
   internalError: (err) -> "Internal error: #{err}."
 
-  noVersionMatchingSpec: (pack, spec) -> "No versions of package '#{pack}' could
-  be found matching version_spec '#{spec}'."
+  noVersionMatchingSpec: (pack, spec) -> if spec
+      "No versions of package '#{pack}' could be found matching version_spec
+      '#{spec}'."
+    else "No versions of package '#{pack}' were found (internal error?)."
 
   packageCouldNotBeRemoved: (packName) -> "Package #{packName} could not be
   removed (access error?)."
@@ -119,15 +121,15 @@ module.exports =
 
   successfulInstall: (dir, packName, ver) -> "Successfully installed
   '#{packName}' version #{ver} at #{dir}."
-  packageExists: (pack) -> "Package #{pack} already exists in the project."
-  dependencyError: (pack, version, spec) -> "Package #{pack} already exists at
+  packageExists: (pack) -> "Package '#{pack}' already exists in the project."
+  dependencyError: (pack, version, spec) -> "Package '#{pack}' already exists at
   version #{version}, which already satisfies the version spec #{spec}."
 
-  mustBumpVersion: (pack, version, newVersion) -> "Package #{pack} was
-  previously at version #{version}, but you specified version #{newVersion}.
-  Please increase the version number."
-  packageSaved: (pack, version) -> "Package #{pack} at version #{version} saved
-  successfully."
+  mustBumpVersion: (pack, version, newVersion, path) -> "Package '#{pack}' was
+  previously at version #{version}, but you specified version #{newVersion} in
+  this project's package-cpm.json. Please increase the version number."
+  packageSaved: (pack, version) -> "Package '#{pack}' at version #{version}
+  saved successfully."
 
   registerSuccessful: (username) -> "Username #{username} registered
   successfully."
