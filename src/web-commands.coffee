@@ -167,13 +167,13 @@ postNewPublish = (pack, name, version, description, tarGZBuffer, cb) ->
     version, description, archive
     package: parseMakePointer 'Package', pack.id}
   pub.save null,
-    error: parseHandleError cb
     success: (savedPub) ->
       parseSetVals pack,
         recent: parseMakePointer 'Publish', savedPub.id
       pack.save null,
         success: (savedPack) -> cb null
         error: parseHandleError cb
+    error: parseHandleError cb
 
 Package = Parse.Object.extend 'Package'
 Publish = Parse.Object.extend 'Publish'
