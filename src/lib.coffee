@@ -9,7 +9,7 @@ tar = require 'tar-fs'
 base64 = require 'base64-stream'
 DumpStream = require 'dump-stream'
 rimraf = require 'rimraf'
-Ignore = require 'fstream-ignore'
+ignore = require 'dot-star-ignore'
 
 S = require "./strings"
 webCommands = require './web-commands'
@@ -51,15 +51,15 @@ getJsonTextOfPackage = (basedir, packName, cb) ->
   getPathOfPackageConfigFile basedir, packName, (err, packPath) ->
     return cb err if err
     fs.readFile packPath, (err, content) ->
-      if err then cb S.packageNotFound dir, packName
+      if err then cb S.packageNotFound basedir, packName
       else cb null, content.toString(), packPath
 
-ident = (x) -> x
-getPackJsonContents = (basedir, packName, field, cb, parse = ident) ->
+getPackJsonContents = (basedir, packName, field, cb) ->
   getJsonTextOfPackage basedir, packName, (err, contents, packPath) ->
-    if err then cb err else cb null, (try
-        parse (JSON.parse contents)[field], packPath
-      catch err then err.message)
+    if err then cb err
+    else
+      try cb null, (JSON.parse contents)[field], packPath
+      catch err then cb err.message
 
 isStringOrArray = (o) -> (typeof o is 'string') or (o instanceof Array)
 isObject = (o) -> (not isStringOrArray o) and o instanceof Object
@@ -96,7 +96,9 @@ getSelectors = (fieldObj, opts, keys, field, packFile) ->
   else throw S.invalidFieldType packFile, field
 
 flattenSelections = (opts, cb) -> (err, files) ->
-  cmds = (lo.flatten files).map (f) -> path.relative process.cwd(), f
+  cmds = (lo.flatten files).map (f) ->
+    res = path.relative process.cwd(), f
+    if res is '' then '.' else res
   if err then cb err
   else if opts?.folders then getFoldersFromFiles cmds, cb
   else cb err, lo.uniq cmds
@@ -173,14 +175,13 @@ specificallyExcluded = (dir, file) ->
   abs = path.resolve dir, file
   (file.match reg for reg in excludeRegexen).reduce ((a, b) -> a or b), null
 getAllFilesInRepo = (dir, cb) ->
-  res = []
-  Ignore({path: dir, ignoreFiles: excludeFiles})
-    .on('child', (c) -> if not specificallyExcluded dir, c.path
-      res.push path.relative dir, c.path)
-    .on('ignoreFile', (f) -> if not specificallyExcluded dir, f
-      res.push path.relative dir, f)
-    .on('error', (err) -> cb err)
-    .on 'close', -> cb null, res
+  newIgnoreFile = new ignore.IgnoreFile '.cpmignore', 1
+  ignoreFiles = ignore.defaultIgnoreFiles.concat newIgnoreFile
+  ignore.getTrackedFiles dir, {ignoreFileObjs: ignoreFiles}, (err, res) ->
+    if err then cb err
+    else cb null, res.files.concat res.dirs.map (d) -> d + '/'
+
+libSoRegex = /^lib|\.so$/gi
 
 
 ### exposed API ###
@@ -200,7 +201,7 @@ dynamicLink = getFilesFromPackageJsonMacro 'dynamic', (files) ->
   folders = lo.uniq (files.map (f) ->
     "-L#{path.dirname f}/")
   filesCleaned = lo.uniq (files.map (f) ->
-    '-l' + ((path.basename f).replace /^lib|\.so$/gi, ""))
+    '-l' + ((path.basename f).replace libSoRegex, ""))
   (folders.concat filesCleaned).join ' '
 
 bin = getFilesFromPackageJsonMacro 'bin', (files) -> files.join ' '
