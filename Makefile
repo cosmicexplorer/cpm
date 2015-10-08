@@ -14,12 +14,12 @@ out := $(patsubst %.coffee,%.js,$(in))
 bin-base := $(SRC_DIR)/command.js
 bin := cmd.js
 
-all: $(bin)
+all: $(bin) $(out)
 
 %.js: %.coffee $(DEPS)
 	$(COFFEE_CC) -bc --no-header $<
 
-$(bin): $(bin-base) $(out) $(DEPS)
+$(bin): $(bin-base) $(DEPS)
 	echo '#!/usr/bin/env node' > $@
 	cat $< >> $@
 	chmod +x $@
