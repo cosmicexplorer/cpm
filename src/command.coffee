@@ -8,7 +8,11 @@ argv = require('minimist')(process.argv[2..])
 
 getOptionArg = (obj, char) -> obj[char] or obj[S.shortLongOptionMap[char]]
 errorOut = (msg) ->
-  console.error msg
+  if msg instanceof Error
+    console.error msg.message
+    console.error msg.stack
+    console.error S.internalFailure
+  else console.error msg
   process.exit 1
 
 help = getOptionArg argv, 'h'
@@ -16,7 +20,7 @@ version = getOptionArg argv, 'v'
 noColor = getOptionArg argv, 'c'
 server = getOptionArg argv, 's'
 allTargets = getOptionArg argv, 'a'
-allTargets = (allTargets is 'true') if typeof allTargets is 'string'
+allTargets is 'true' if typeof allTargets is 'string'
 
 if version
   f = JSON.parse fs.readFileSync path.normalize(

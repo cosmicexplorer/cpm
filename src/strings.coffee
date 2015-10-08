@@ -57,7 +57,9 @@ module.exports =
   "  remove     Remove package from c_modules and #{packageFilename}."
   ""
   "More in-depth documentation of all these options can be found at:"
-  "https://github.com/cosmicexplorer/cpm/blob/master/docs/commands.md."]
+  "https://github.com/cosmicexplorer/cpm/blob/master/docs/commands.md."
+  "If you encounter an error, report it at"
+  "https://github.com/cosmicexplorer/cpm/issues."]
   .join '\n'
 
   # use if no package.json found for current project
@@ -66,7 +68,7 @@ module.exports =
 
   # use if package.json found for current project, but not for a dependency
   packageNotFound: (jsonDir, pack) -> "Package '#{pack}' was not found in
-  #{path.join jsonDir, modulesFolder, pack}/"
+  #{path.join jsonDir, modulesFolder, pack}/."
 
   invalidFieldType: (jsonPath, field) -> "Field '#{field}' of #{jsonPath} is not
   an object, array of strings, or string."
@@ -102,6 +104,9 @@ module.exports =
   noSuchPackageRegex: (reg) -> "No packages found matching regex '#{reg}.'"
   noSuchPackage: (str) -> "No packages found with name '#{str}'."
   internalError: (err) -> "Internal error: #{err}."
+
+  internalFailure: "This was an internal error. Feel free to report it at
+  https://github.com/cosmicexplorer/cpm/issues."
 
   noVersionMatchingSpec: (pack, spec) -> if spec
       "No versions of package '#{pack}' could be found matching version_spec
