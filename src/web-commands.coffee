@@ -189,7 +189,7 @@ publish = ({name, version, description}, tarGZBuffer, cb) ->
     (pack, cb) ->
       postNewPublish pack, name, version, description, tarGZBuffer, cb],
     (err) ->
-      if err then return cb err
+      if err then cb err
       else cb null, S.packageSaved name, version
 
 register = (cb) ->

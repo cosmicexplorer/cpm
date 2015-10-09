@@ -5,6 +5,7 @@ modulesFolder = 'c_modules'
 validDepDevs =
   dep: 'dependencies'
   dev: 'devDependencies'
+validDepDevsArr = (k for k of validDepDevs)
 
 module.exports =
   shortLongOptionMap:
@@ -121,8 +122,13 @@ module.exports =
   positional parameters."
 
   validDepDevs: validDepDevs
-  invalidDepDev: (str) -> "'#{str}' is not a valid dependency specifier. Please
-  specify one of '#{@validDepDevs.join "', or '"}'."
+  invalidDepDev: (str) ->
+    if str?
+      "'#{str}' is not a valid dependency specifier. Please specify one of
+      '#{validDepDevsArr.join "', or '"}'."
+    else
+      "Please specify a dependency type; one of
+      '#{validDepDevsArr.join "', or'"}.'"
 
   successfulInstall: (dir, packName, ver) -> "Successfully installed
   '#{packName}' version #{ver} at #{dir}."

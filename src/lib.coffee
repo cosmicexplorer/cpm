@@ -177,7 +177,7 @@ specificallyExcluded = (dir, file) ->
 getAllFilesInRepo = (dir, cb) ->
   newIgnoreFile = new ignore.IgnoreFile '.cpmignore', 1
   ignoreFiles = ignore.defaultIgnoreFiles.concat newIgnoreFile
-  ignore.getTrackedFiles dir, {ignoreFileObjs: ignoreFiles}, (err, res) ->
+  ignore.getTracked dir, {ignoreFileObjs: ignoreFiles}, (err, res) ->
     if err then cb err
     else cb null, res.files.concat res.dirs.map (d) -> d + '/'
 
@@ -228,9 +228,8 @@ bootstrap = (basedir, cb) ->
           if err then cb err.message
           else cb null, S.successfulBootstrap newProjectName
 
-correctVersionRegex = /[0-9]+\.{2}[0-9]+/g
+correctVersionRegex = /([0-9]+\.){2}[0-9]+/g
 
-# TODO: ignore .git and .gitignored files
 # TODO: install all from package.json if no depDev, packName given
 install = (basedir, packName, depDev, version_spec, cb) ->
   dir = null
@@ -254,11 +253,11 @@ install = (basedir, packName, depDev, version_spec, cb) ->
       prevVersion = parsed[depField]?[packName]
       if prevVersion and not prevVersion.match correctVersionRegex
         cb S.invalidVersion pkgConfigPath, prevVersion
-      else if utils.compareVersionStrings prevVersion, version_spec
+      else if version_spec and
+              utils.compareVersionStrings prevVersion, version_spec
         cb S.dependencyError packName, prevVersion, version_spec
       else cb null
-    (cb) ->
-      webCommands.install packName, version_spec, cb
+    (cb) -> webCommands.install packName, version_spec, cb
     (args...) -> extractTarToDir dir, packName, depField, args...],
     (err, outDir, ver) -> cb err, S.successfulInstall outDir, packName, ver
 
@@ -307,7 +306,8 @@ publish = (basedir, cb) ->
     # make tar.gz of current package's contents
     (cb) -> getAllFilesInRepo dir, cb
     (files, cb) ->
-      tarGZStream = (tar.pack dir, {entries: files})
+      files = files.map (f) -> path.relative dir, f
+      tarGZStream = (tar.pack dir, {entries: files}).on('error', cb)
         .pipe(zlib.createGzip())
         .pipe(base64.encode())
       s = new DumpStream
