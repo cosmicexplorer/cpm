@@ -1,0 +1,8 @@
+{
+  "name": "hey",
+  "version": "0.0.5",
+  "description": "lol2",
+  "dependencies": {
+    "mine": "0.0.0"
+  }
+}
