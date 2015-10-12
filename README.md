@@ -57,7 +57,7 @@ Finally, integrating (potentially massive) existing projects to cpm is a jiffy; 
 
 ## Hosting? Also, Curation?
 
-A public registry containing archives of all projects on the registry naturally requires some reliable and scalable storage space. I haven't figured out hosting, but I'm probably gonna stick it on a digital ocean droplet or something. Depending upon the pricing scheme and activity, this may require a curation of libraries, to reduce the amount of space used and to ensure cpm isn't just used as a file storage service.
+A public registry containing archives of all projects on the registry naturally requires some reliable and scalable storage space. I haven't figured out hosting, but I'm probably gonna stick it on a digital ocean droplet or something. EDIT: I'm using Parse because it's (kinda) free. Depending upon the pricing scheme and activity, this may require a curation of libraries, to reduce the amount of space used and to ensure cpm isn't just used as a file storage service.
 
 ## Dynamic Libraries?
 
@@ -75,6 +75,6 @@ cpm will be covered by the GPL, version 3 or later. See [the license](GPL.md) fo
 
 - [x] write readme
 - [x] decide how hosting is gonna work
-- [ ] make basic client
+- [x] make basic client
 - [ ] add capability for separate registry servers, with authentication
 - [ ] bask in fame and glory
