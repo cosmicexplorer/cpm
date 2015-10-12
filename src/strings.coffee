@@ -150,3 +150,11 @@ module.exports =
 
   invalidVersion: (path, ver) -> "Version '#{ver}' specified in #{path} is
   invalid."
+
+  needsRequiredFields: (path) -> "Package at #{path} requires 'name' and
+  'version' to be specified."
+  invalidPackageName: (name, path) -> "Package name '#{name}' in #{path} is
+  invalid. Please make your package name consist of underscores, dashes, and
+  alphanumerics."
+
+  cancelledInput: "User cancelled input."

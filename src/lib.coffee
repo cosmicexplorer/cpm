@@ -17,10 +17,11 @@ utils = require './utils'
 
 # files that we shall use to exclude others
 excludeFiles = ['.gitignore', '.cpmignore']
-# regexes that we shall use (on the file's ABSOLUTE path) to exclude files
+# regexen that we shall use (on the file's ABSOLUTE path) to exclude files
 excludeRegexen = [
   /(^|\/)\.git(\/|$)/g               # exclude the git folder
   ]
+allowedPackageNamesRegex = /^[a-zA-Z_\-0-9]+$/g
 
 
 # auxiliary methods
@@ -182,6 +183,7 @@ getAllFilesInRepo = (dir, cb) ->
     else cb null, res.files.concat res.dirs.map (d) -> d + '/'
 
 libSoRegex = /^lib|\.so$/gi
+correctVersionRegex = /([0-9]+\.){2}[0-9]+/g
 
 
 ### exposed API ###
@@ -228,11 +230,11 @@ bootstrap = (basedir, cb) ->
           if err then cb err.message
           else cb null, S.successfulBootstrap newProjectName
 
-correctVersionRegex = /([0-9]+\.){2}[0-9]+/g
-
 # TODO: install all from package.json if no depDev, packName given
+# TODO: add prepublish, make-on-install scripts
 install = (basedir, packName, depDev, version_spec, cb) ->
   dir = null
+  # return installFromPackageJson basedir, version_spec, cb if not packName
   depField = S.validDepDevs[depDev]
   return cb S.invalidDepDev depDev unless depField
   if not S.validDepDevs[depDev] then cb S.invalidDepDev depDev
@@ -302,7 +304,11 @@ publish = (basedir, cb) ->
     (cb) -> fs.readFile (path.join dir, S.packageFilename), cb
     (res, cb) ->
       pkgJson = JSON.parse res
-      cb null
+      if pkgJson?.name.match allowedPackageNamesRegex then cb null
+      else
+        p = path.join dir, S.packageFilename
+        if not pkgJson.name then cb S.needsRequiredFields p
+        else cb S.invalidPackageName pkgJson.name, p
     # make tar.gz of current package's contents
     (cb) -> getAllFilesInRepo dir, cb
     (files, cb) ->

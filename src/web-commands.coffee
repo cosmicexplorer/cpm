@@ -138,8 +138,8 @@ promptSchema = ({verifyPass} = {}) ->
 login = (cb) ->
   prompt.start()
   prompt.get promptSchema(), (err, res) ->
-    return cb err if err
-    Parse.User.logIn res.username, res.password,
+    if err then cb '\n' + S.cancelledInput
+    else Parse.User.logIn res.username, res.password,
       success: (user) -> cb null, user
       error: parseHandleError cb
 
@@ -153,9 +153,7 @@ makePackageCheckVersion = (user, pack, name, version, cb) ->
     else cb null, pack
   else
     pack = new Package
-    parseSetVals pack, {
-      name
-      Owner: parseMakePointer 'User', user.id}
+    parseSetVals pack, {name, Owner: parseMakePointer 'User', user.id}
     pack.save null,
       success: (savedPack) -> cb null, savedPack
       error: parseHandleError cb
