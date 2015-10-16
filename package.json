@@ -13,7 +13,7 @@
     "async": "^1.4.2",
     "base64-stream": "^0.1.2",
     "colors": "^1.1.2",
-    "dot-star-ignore": "^1.0.4",
+    "dot-star-ignore": "^1.1.5",
     "dump-stream": "0.0.9",
     "glob": "^5.0.15",
     "lodash": "^3.10.1",
